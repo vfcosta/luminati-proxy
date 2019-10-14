@@ -15,40 +15,74 @@ import {Toolbar_button, Devider, Sort_icon,
 import {T} from './common/i18n.js';
 
 class Stats extends Pure_component {
-    state = {
-        statuses: {stats: []},
-        domains: {stats: []},
-        protocols: {stats: []},
-        stats: {},
-    };
+    state = {stats: {}, request_stats: false, toggling: false};
     componentWillMount(){
         this.setdb_on('head.recent_stats', stats=>{
             if (stats)
                 this.setState({stats});
+        });
+        this.setdb_on('head.settings', s=>{
+            if (s)
+                this.setState({request_stats: s.request_stats});
+        });
+        this.setdb_on('head.save_settings', save_settings=>{
+            this.save_settings = save_settings;
         });
     }
     enable_ssl_click = e=>{
         e.stopPropagation();
         $('#enable_ssl_modal').modal();
     };
-    show_reset_dialog = ()=>this.setState({show_reset: true});
+    toggle_stats = val=>{
+        if (!this.save_settings)
+        {
+            this.saved_stats = val;
+            return;
+        }
+        const _this = this;
+        this.setState({toggling: true});
+        this.etask(function*(){
+            this.on('finally', ()=>_this.setState({toggling: false}));
+            const settings = Object.assign({}, setdb.get('head.settings'));
+            settings.request_stats = val;
+            yield _this.save_settings(settings);
+        });
+    };
     render(){
-        return <div className="chrome stats_panel">
-              <div className="main_panel">
-                <Toolbar stats={this.state.stats}/>
-                <Stat_table stats={this.state.stats} tooltip="Status code"
-                  row_key="status_code" logs="code" title="Code"/>
-                <Stat_table stats={this.state.stats} tooltip="Domain name"
-                  row_key="hostname" logs="domain" title="Domain"/>
-                <Stat_table stats={this.state.stats} tooltip="Protocol"
-                  ssl_warning={this.state.stats.ssl_warning}
-                  row_key="protocol" logs="protocol" title="Protocol"/>
-                <Summary_bar enable_ssl_click={this.enable_ssl_click}
-                  show={this.state.stats.ssl_enable}/>
+        const {toggling, request_stats, stats} = this.state;
+        if (!request_stats)
+        {
+            return <Stats_off_btn turn_on_stats={()=>this.toggle_stats(true)}
+              disabled={toggling}/>;
+        }
+        return <div className="stats_wrapper">
+              <div className="chrome stats_panel">
+                <div className="main_panel">
+                  <Toolbar stats={stats}
+                    disable_stats={()=>this.toggle_stats(false)}/>
+                  <Stat_table stats={stats} tooltip="Status code"
+                    row_key="status_code" logs="code" title="Code"/>
+                  <Stat_table stats={stats} tooltip="Domain name"
+                    row_key="hostname" logs="domain" title="Domain"/>
+                  <Stat_table stats={stats} tooltip="Protocol"
+                    ssl_warning={stats.ssl_warning} row_key="protocol"
+                    logs="protocol" title="Protocol"/>
+                  <Summary_bar enable_ssl_click={this.enable_ssl_click}
+                    show={stats.ssl_enable}/>
+                </div>
               </div>
             </div>;
     }
 }
+
+const Stats_off_btn = props=>
+  <Tooltip title="Recent stats are disabled. Click here to turn it on again"
+    placement="left">
+    <button className="enable_stats_btn" disabled={props.disabled}
+      onClick={props.turn_on_stats}>
+      <i className="glyphicon glyphicon-stats"/>
+    </button>
+  </Tooltip>;
 
 const Empty_row = ()=>
     <tr className="empty_row">
@@ -218,6 +252,8 @@ class Toolbar extends Pure_component {
                 <Devider/>
                 <Success_ratio total={this.props.stats.total}
                   success={this.props.stats.success}/>
+                <Toolbar_button id="close_logs" tooltip="Disable"
+                  placement="left" on_click={this.props.disable_stats}/>
               </Toolbar_row>
             </Toolbar_container>;
     }

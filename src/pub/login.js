@@ -5,6 +5,7 @@ import {withRouter} from 'react-router-dom';
 import Pure_component from '/www/util/pub/pure_component.js';
 import {Typeahead} from 'react-bootstrap-typeahead';
 import ajax from '../../util/ajax.js';
+import etask from '../../util/etask.js';
 import setdb from '../../util/setdb.js';
 import zurl from '../../util/url.js';
 import {Loader, Logo} from './common.js';
@@ -13,7 +14,10 @@ import {T} from './common/i18n.js';
 const Login = withRouter(class Login extends Pure_component {
     state = {password: '', username: '', loading: false};
     componentDidMount(){
-        this.setdb_on('head.settings', settings=>this.setState({settings}));
+        this.setdb_on('head.argv', argv=>{
+            if (argv)
+                this.setState({argv});
+        });
         this.setdb_on('head.ver_node', ver_node=>this.setState({ver_node}));
         const url_o = zurl.parse(document.location.href);
         const qs_o = zurl.qs_parse((url_o.search||'').substr(1));
@@ -71,14 +75,39 @@ const Login = withRouter(class Login extends Pure_component {
     get_in = ()=>{
         const _this = this;
         this.etask(function*(){
-            this.on('uncaught', _this.get_in);
-            const settings = yield ajax.json({url: '/api/settings'});
-            window.ga('set', 'dimension1', settings.customer);
-            setdb.set('head.settings', settings);
-            const consts = yield ajax.json({url: '/api/consts'});
-            setdb.set('head.consts', consts);
-            const zones = yield ajax.json({url: '/api/zones'});
-            setdb.set('head.zones', zones);
+            this.on('uncaught', e=>{
+                _this.setState({error_message: 'Cannot log in: '+e.message});
+            });
+            const ets = [];
+            ets.push(etask(function*_get_settings(){
+                const settings = yield ajax.json({url: '/api/settings'});
+                window.ga('set', 'dimension1', settings.customer);
+                setdb.set('head.settings', settings);
+            }));
+            ets.push(etask(function*_get_consts(){
+                const consts = yield ajax.json({url: '/api/consts'});
+                setdb.set('head.consts', consts);
+            }));
+            const curr_locations = setdb.get('head.locations');
+            if (!curr_locations || !curr_locations.shared_countries)
+            {
+                ets.push(etask(function*_get_locations(){
+                    const locations = yield ajax.json(
+                        {url: '/api/all_locations'});
+                    locations.countries_by_code = locations.countries.reduce(
+                    (acc, e)=>({...acc, [e.country_id]: e.country_name}), {});
+                    setdb.set('head.locations', locations);
+                }));
+            }
+            ets.push(etask(function*_get_zones(){
+                const zones = yield ajax.json({url: '/api/zones'});
+                setdb.set('head.zones', zones);
+            }));
+            ets.push(etask(function*_get_proxies_running(){
+                const proxies = yield ajax.json({url: '/api/proxies_running'});
+                setdb.set('head.proxies_running', proxies);
+            }));
+            yield etask.all(ets);
             _this.props.history.push('/overview');
         });
     };
@@ -86,7 +115,7 @@ const Login = withRouter(class Login extends Pure_component {
         return <div className="lum_login">
               <Logo/>
               <Messages error_message={this.state.error_message}
-                settings={this.state.settings}
+                argv={this.state.argv}
                 ver_node={this.state.ver_node}/>
               <Loader show={this.state.loading}/>
               <Header/>
@@ -101,17 +130,16 @@ const Login = withRouter(class Login extends Pure_component {
     }
 });
 
-const parse_arguments = (settings={argv: ''})=>
-    settings.argv.replace(/(--password )(.+?)( --|$)/, '$1|||$2|||$3')
-    .split('|||');
+const parse_arguments = argv=>
+    argv.replace(/(--password )(.+?)( --|$)/, '$1|||$2|||$3').split('|||');
 
-const Messages = ({error_message, settings, ver_node})=>
+const Messages = ({error_message, argv, ver_node})=>
     <div>
-      {settings && settings.argv &&
+      {argv &&
         <div className="warning">
           <div className="warning_icon"/>
           The application is running with the following arguments:
-          {parse_arguments(settings).map(a=><strong key={a}>{a}</strong>)}
+          {parse_arguments(argv).map(a=><strong key={a}>{a}</strong>)}
         </div>
       }
       {error_message &&

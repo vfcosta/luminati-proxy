@@ -51,6 +51,8 @@ function ajax(opt){
             ajopt.processData = false;
             delete ajopt.dataType;
         }
+        if (opt.async!==undefined)
+            ajopt.async = opt.async;
         xhr = $.ajax(ajopt);
         var _this = this;
         xhr.done(function(v){
@@ -62,6 +64,8 @@ function ajax(opt){
                 _this.continue(null);
                 return;
             }
+            if (!err && data_type=='text' && _xhr && _xhr.responseText)
+                err = _xhr.responseText;
             _this.throw(err instanceof Error ? err : new Error(''+err));
         });
         return this.wait();

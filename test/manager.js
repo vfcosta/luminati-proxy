@@ -9,19 +9,23 @@ const assert = require('assert');
 const request = require('request');
 const sinon = require('sinon');
 const Manager = require('../lib/manager.js');
+const Server = require('../lib/server.js');
 const cities = require('../lib/cities');
 sinon.stub(cities, 'ensure_data', ()=>null);
-const Timeline = require('../lib/timeline.js');
-const zlog = require('../lib/log.js');
+const logger = require('../lib/logger.js');
 const etask = require('../util/etask.js');
 const pkg = require('../package.json');
 const qw = require('../util/string.js').qw;
 const lpm_util = require('../util/lpm_util.js');
+const lpm_config = require('../util/lpm_config.js');
 const assign = Object.assign;
+const {stub: sstub, match: smatch} = sinon;
 const customer = 'abc';
 const password = 'xyz';
 const {assert_has} = require('./common.js');
-let api_base = 'https://'+pkg.api_domain;
+const api_base = 'https://'+pkg.api_domain;
+
+logger.transports.forEach(t=>{ t.silent = true; });
 
 let tmp_file_counter = 0;
 const temp_file_path = (ext, pre)=>{
@@ -46,7 +50,7 @@ const temp_file = (content, ext, pre)=>{
 };
 
 describe('manager', ()=>{
-    const log_stub = sinon.stub(zlog._log, 'push');
+    const logger_stub = sinon.stub(logger, 'notice');
     let app, temp_files;
     const get_param = (args, param)=>{
         let i = args.indexOf(param)+1;
@@ -59,7 +63,6 @@ describe('manager', ()=>{
                 return manager.stop(true);
         });
         args = args||[];
-        const www = get_param(args, '--www')||Manager.default.www;
         if (!only_explicit)
         {
             let log = get_param(args, '--log');
@@ -79,15 +82,15 @@ describe('manager', ()=>{
                 args = args.concat(['--no-dropin']);
             if (!get_param(args, '--cookie')&&!get_param(args, '--no-cookie'))
                 args.push('--no-cookie');
+            if (!get_param(args, '--local_login'))
+                args = args.concat(['--no-local_login']);
             args = args.concat('--loki', '/tmp/testdb');
         }
+        Manager.prototype.get_ip = ()=>null;
         Manager.prototype.check_conn = ()=>null;
-        manager = new Manager(lpm_util.init_args(args),
-            {bypass_credentials_check: true});
-        manager.on('error', this.throw_fn());
+        manager = new Manager(lpm_util.init_args(args));
         yield manager.start();
-        const admin = 'http://127.0.0.1:'+www;
-        return {manager, admin};
+        return {manager};
     });
     const app_with_config = opt=>etask(function*(){
         const args = [];
@@ -102,7 +105,10 @@ describe('manager', ()=>{
                 return;
             }
             args.push('--'+k);
-            args.push(cli[k]);
+            if (Array.isArray(cli[k]))
+                args.push(...cli[k]);
+            else
+                args.push(cli[k]);
         });
         if (opt.config)
         {
@@ -121,24 +127,34 @@ describe('manager', ()=>{
     const app_with_proxies = (proxies, cli)=>etask(function*(){
         return yield app_with_config({config: {proxies}, cli});
     });
-    const api = (_path, method, data, json)=>etask(function*(){
+    const api = (_path, method, data, json, headers)=>etask(function*(){
+        const admin = 'http://127.0.0.1:'+Manager.default.www;
         const opt = {
-            url: app.admin+'/'+_path,
+            url: admin+'/'+_path,
             method: method||'GET',
             json: json,
             body: data,
+            headers: headers || {'x-lpm-fake': true},
         };
         return yield etask.nfn_apply(request, [opt]);
     });
-    const api_json = (_path, options)=>etask(function*(){
-        let opt = options||{};
-        return yield api(_path, opt.method, opt.body, true);
+    const api_json = (_path, opt={})=>etask(function*(){
+        return yield api(_path, opt.method, opt.body, true, opt.headers);
     });
     const json = (_path, method, data)=>etask(function*(){
         const res = yield api(_path, method, data, true);
         assert.equal(res.statusCode, 200);
         return res.body;
     });
+    const make_user_req = (port=24000, status=200)=>{
+        return api_json('api/test/'+port, {
+            method: 'POST',
+            body: {
+                url: 'http://lumtest.com/myip.json',
+                headers: {'x-lpm-fake': true, 'x-lpm-fake-status': status},
+            },
+        });
+    };
     afterEach('after manager', etask._fn(function*(_this){
         if (!app)
             return;
@@ -149,8 +165,12 @@ describe('manager', ()=>{
             return;
         app = null;
     }));
-    beforeEach(()=>temp_files = []);
-    afterEach('after manager 2', ()=>temp_files.forEach(f=>f.done()));
+    beforeEach(()=>{
+        temp_files = [];
+    });
+    afterEach('after manager 2', ()=>{
+        temp_files.forEach(f=>f.done());
+    });
     describe('get_params', ()=>{
         const t = (name, _args, expected)=>it(name, etask._fn(function(_this){
             const mgr = new Manager(lpm_util.init_args(_args));
@@ -164,11 +184,12 @@ describe('manager', ()=>{
             qw`--no-config --customer usr --password abc --token t --zone z`,
             qw`--no-config --customer usr --password abc --token t --zone z`);
     });
-    xdescribe('config load', ()=>{
+    describe('config load', ()=>{
         const t = (name, config, expected)=>it(name, etask._fn(
         function*(_this){
+            _this.timeout(6000);
             app = yield app_with_config(config);
-            let proxies = yield json('api/proxies_running');
+            const proxies = yield json('api/proxies_running');
             assert_has(proxies, expected, 'proxies');
         }));
         const simple_proxy = {port: 24024};
@@ -176,53 +197,53 @@ describe('manager', ()=>{
             [assign({}, simple_proxy, {proxy_type: 'persist'})]);
         t('main config only', {config: simple_proxy},
             [assign({}, simple_proxy, {proxy_type: 'persist'})]);
-        t('config file', {files: [simple_proxy]}, [simple_proxy]);
+        t('config file', {config: {proxies: [simple_proxy]}}, [simple_proxy]);
         t('config override cli', {cli: simple_proxy, config: {port: 24042}},
             [simple_proxy, {proxy_type: 'persist', port: 24042}]);
-        const multiple_proxies = [
-            assign({}, simple_proxy, {port: 25025}),
-            assign({}, simple_proxy, {port: 26026}),
-            assign({}, simple_proxy, {port: 27027}),
-        ];
-        t('multiple config files', {files: multiple_proxies},
-            multiple_proxies);
-        t('main + config files', {config: simple_proxy,
-            files: multiple_proxies}, [].concat([assign({}, simple_proxy,
-            {proxy_type: 'persist'})], multiple_proxies));
         describe('default zone', ()=>{
             const zone_static = {password: ['pass1']};
             const zone_gen = {password: ['pass2']};
-            const zones = {static: assign({}, zone_static),
+            const zones = {static: Object.assign({}, zone_static),
                 gen: assign({}, zone_gen)};
             const t2 = (name, config, expected, _defaults={zone: 'static'})=>{
                 nock(api_base).get('/').reply(200, {});
-                nock(api_base).post('/update_lpm_stats')
-                    .reply(200, {});
+                nock(api_base).post('/update_lpm_stats').reply(200, {});
                 nock(api_base).get('/cp/lum_local_conf')
                     .query({customer: 'testc1', proxy: pkg.version})
                     .reply(200, {_defaults});
                 t(name, _.set(config, 'cli.customer', 'testc1'), expected);
             };
-            t2('invalid', {config: {_defaults: {zone: 'foo'},
-                proxies: [simple_proxy]}}, [assign({}, simple_proxy,
-                {zone: 'static'})], {zone: 'static', zones});
-            t2('keep default', {config: {_defaults: {zone: 'gen'},
-                proxies: [simple_proxy]}}, [assign({}, simple_proxy,
-                {zone: 'gen'})]);
-            t2('default disabled', {config: {_defaults: {zone: 'gen'},
-                proxies: [simple_proxy]}}, [assign({}, simple_proxy,
-                {zone: 'static'})], {zone: 'static', zones: assign({}, zones,
-                    {gen: {plans: [{disable: 1}]}})});
+            t2('from defaults', {
+                config: {_defaults: {zone: 'foo'}, proxies: [simple_proxy]},
+            }, [Object.assign({zone: 'foo'}, simple_proxy)],
+                {zone: 'static', zones});
+            t2('keep default', {
+                config: {_defaults: {zone: 'gen'}, proxies: [simple_proxy]},
+            }, [Object.assign({zone: 'gen'}, simple_proxy)]);
+            t2('empty zone should be overriden by default', {config: {
+                _defaults: {},
+                proxies: [Object.assign({zone: ''}, simple_proxy)],
+            }}, [{zone: 'static'}]);
+        });
+        describe('args as default params for proxy ports', ()=>{
+            it('should use proxy from args', etask._fn(function*(_this){
+                app = yield app_with_args(['--proxy', '1.2.3.4',
+                    '--proxy_port', '3939', '--dropin']);
+                const dropin = app.manager.proxy_ports[22225];
+                assert.equal(dropin.opt.proxy, '1.2.3.4');
+                assert.equal(dropin.opt.proxy_port, 3939);
+            }));
         });
     });
-    xdescribe('dropin', ()=>{
-        const t = (name, args, expected)=>it(name, etask._fn(
-        function*(_this){
-            app = yield app_with_args(args);
-            let proxies = yield json('api/proxies_running');
-            assert_has(proxies, expected, 'proxies');
+    describe('dropin', ()=>{
+        it('off', etask._fn(function*(_this){
+            app = yield app_with_args(['--no-dropin']);
+            assert.ok(!app.manager.proxy_ports[22225]);
         }));
-        t('off', ['--no-dropin'], []);
+        it('on', etask._fn(function*(_this){
+            app = yield app_with_args(['--dropin']);
+            assert.ok(!!app.manager.proxy_ports[22225]);
+        }));
     });
     describe('api', ()=>{
         it('ssl', etask._fn(function*(_this){
@@ -346,51 +367,43 @@ describe('manager', ()=>{
                 }));
             });
         });
+        describe('banips', ()=>{
+            it('should fail when any IP fails', ()=>etask(function*(_this){
+                const proxies = [{port: 24000}];
+                app = yield app_with_proxies(proxies, {});
+                sinon.stub(Server.prototype, 'banip', ip=>ip=='1.1.1.2');
+                const res = yield api_json('api/proxies/24000/banips',
+                    {method: 'post', body: {ips: ['1.1.1.1', '1.1.1.2']}});
+                Server.prototype.banip.restore();
+                assert.equal(res.statusCode, 400);
+            }));
+        });
         describe('user credentials', ()=>{
             it('success', etask._fn(function*(_this){
                 nock(api_base).get('/').times(3).reply(200, {});
-                nock(api_base).post('/update_lpm_stats')
-                    .reply(200, {});
-                nock(api_base).post('/update_lpm_config')
-                    .reply(200, {});
-                nock(api_base).get('/cp/lum_local_conf')
-                    .query({customer: 'mock_user', proxy: pkg.version})
+                nock(api_base).post('/update_lpm_stats').reply(200, {});
+                nock(api_base).post('/update_lpm_config').reply(200, {});
+                nock(api_base).get('/cp/lum_local_conf').query(true)
                     .reply(200, {mock_result: true, _defaults: true});
                 app = yield app_with_args(['--customer', 'mock_user']);
-                const result = yield app.manager.get_lum_local_conf();
-                assert_has(result, {mock_result: true});
+                const res = yield app.manager.get_lum_local_conf(null, '123');
+                assert_has(res, {mock_result: true});
             }));
             it('login required', etask._fn(function*(_this){
                 nock(api_base).get('/').times(3).reply(200, {});
                 nock(api_base).get('/cp/lum_local_conf')
-                    .query({customer: 'mock_user', token: '',
-                        proxy: pkg.version})
+                    .query(true)
                     .reply(403, 'login_required');
-                nock(api_base).get('/cp/lum_local_conf')
-                    .query({token: '', proxy: pkg.version})
+                nock(api_base).get('/cp/lum_local_conf').times(2)
+                    .query(true)
                     .reply(403, 'login_required');
                 app = yield app_with_args(['--customer', 'mock_user']);
                 try {
-                    yield app.manager.get_lum_local_conf(null, null, true);
+                    yield app.manager.get_lum_local_conf(null, '123');
                     assert.fail('should have thrown exception');
                 } catch(e){
                     assert_has(e, {status: 403, message: 'login_required'});
                 }
-            }));
-            it('update defaults', etask._fn(function*(_this){
-                const updated = {_defaults: {customer: 'updated'}};
-                nock(api_base).get('/').times(3).reply(200, {});
-                nock(api_base).post('/update_lpm_stats')
-                    .query({customer: 'updated'}).reply(200, {});
-                nock(api_base).post('/update_lpm_config')
-                    .query({customer: 'updated'}).reply(200, {});
-                nock(api_base).get('/cp/lum_local_conf')
-                    .query({customer: 'mock_user', proxy: pkg.version})
-                    .reply(200, updated);
-                app = yield app_with_args(['--customer', 'mock_user']);
-                const res = yield app.manager.get_lum_local_conf();
-                assert_has(res, updated, 'result');
-                assert_has(app.manager._defaults, res._defaults, '_defaults');
             }));
         });
         describe('har logs', ()=>{
@@ -398,8 +411,9 @@ describe('manager', ()=>{
                 app = yield app_with_args(['--customer', 'mock_user',
                     '--port', '24000']);
                 app.manager.loki.requests_clear();
-                app.manager.proxies_running[24000]._handle_usage({
-                    timeline: new Timeline(),
+                app.manager.proxy_ports[24000].emit('usage', {
+                    timeline: null,
+                    url: 'http://bbc.com',
                     request: {url: 'http://bbc.com'},
                     response: {},
                 });
@@ -409,62 +423,89 @@ describe('manager', ()=>{
                 assert.equal(res.body.log.entries.length, 1);
             }));
         });
-        xdescribe('recent_stats', ()=>{
-            const t = (name, expected)=>
-            it(name, etask._fn(function*(_this){
-                nock(api_base).get('/cp/lum_local_conf')
-                    .query({customer: 'mock_user', proxy: pkg.version})
-                    .reply(200, {mock_result: true, _defaults: true});
-                app = yield app_with_args(qw`--customer mock_user --port 24000
-                    --request_stats --ssl false`);
-                app.manager.loki.stats_clear();
-                yield etask.nfn_apply(request, [{
-                    proxy: 'http://127.0.0.1:24000',
-                    url: 'http://linkedin.com/',
-                    strictSSL: false,
-                }]);
-                yield etask.sleep(1500);
-                const res = yield api_json(`api/recent_stats`);
-                assert_has(res.body, expected);
+        describe('add_wip', ()=>{
+            it('forbidden when token is not set', etask._fn(function*(_this){
+                app = yield app_with_config({config: {}});
+                const res = yield api_json('api/add_wip', {
+                    method: 'POST',
+                    headers: {Authorization: 'aaa'},
+                });
+                assert.equal(res.statusMessage, 'Forbidden');
+                assert.equal(res.statusCode, 403);
             }));
-            t('main', {
-                status_code: [{key: '200', reqs: 1}],
-                protocol: [{key: 'http', reqs: 1}],
-                hostname: [{key: 'linkedin.com', reqs: 1}],
-                ports: {24000: {
-                    reqs: 1,
-                    success: 1,
-                    url: 'http://linkedin.com/',
-                }},
-                success: 1,
-                total: 1,
-            });
+            it('forbidden when token is not correct',
+            etask._fn(function*(_this){
+                const config = {_defaults: {token_auth: 'aaa'}};
+                app = yield app_with_config({config});
+                const res = yield api_json('api/add_wip', {method: 'POST'});
+                assert.equal(res.statusMessage, 'Forbidden');
+                assert.equal(res.statusCode, 403);
+            }));
+            it('bad requests if no IP is passed', etask._fn(function*(_this){
+                const config = {_defaults: {token_auth: 'aaa'}};
+                app = yield app_with_config({config});
+                const res = yield api_json('api/add_wip', {
+                    method: 'POST',
+                    headers: {Authorization: 'aaa'},
+                });
+                assert.equal(res.statusMessage, 'Bad Request');
+                assert.equal(res.statusCode, 400);
+            }));
+            it('adds IP without a mask', etask._fn(function*(_this){
+                const config = {_defaults: {token_auth: 'aaa'}};
+                app = yield app_with_config({config});
+                const res = yield api_json('api/add_wip', {
+                    method: 'POST',
+                    headers: {Authorization: 'aaa'},
+                    body: {ip: '1.1.1.1'},
+                });
+                assert.equal(res.statusCode, 200);
+                assert.equal(app.manager._defaults.whitelist_ips.length, 1);
+                assert.equal(app.manager._defaults.whitelist_ips[0],
+                    '1.1.1.1');
+            }));
+            it('adds IP with a mask', etask._fn(function*(_this){
+                const config = {_defaults: {token_auth: 'aaa'}};
+                app = yield app_with_config({config});
+                const res = yield api_json('api/add_wip', {
+                    method: 'POST',
+                    headers: {Authorization: 'aaa'},
+                    body: {ip: '1.1.1.1/20'},
+                });
+                assert.equal(res.statusCode, 200);
+                assert.equal(app.manager._defaults.whitelist_ips.length, 1);
+                assert.equal(app.manager._defaults.whitelist_ips[0],
+                    '1.1.0.0/20');
+            }));
         });
     });
-    describe('crash on load error', ()=>{
+    xdescribe('crash on load error', ()=>{
         beforeEach(()=>{
-            log_stub.reset();
+            logger_stub.reset();
         });
         const t = (name, proxies, msg)=>it(name, etask._fn(function*(_this){
             const err_matcher = sinon.match(msg);
             app = yield app_with_proxies(proxies);
-            sinon.assert.calledWith(log_stub, err_matcher);
+            sinon.assert.calledWith(logger_stub, err_matcher);
         }));
         t('conflict proxy port', [{port: 24024}, {port: 24024}],
-            'Port 24024 is already in use by Proxy #1 - skipped');
+            'Port %s is already in use by #%s - skipped');
         const www_port = Manager.default.www;
         t('conflict with www', [{port: www_port}],
-            `Port ${www_port} is already in use by UI/API - skipped`);
+            `Port %s is already in use by %s - skipped`);
     });
     describe('using passwords', ()=>{
         it('take password from provided zone', etask._fn(function*(_this){
             const config = {proxies: []};
             const _defaults = {zone: 'static', password: 'xyz',
                 zones: {zone1: {password: ['zone1_pass']}}};
-            app = yield app_with_config({config, cli: {}});
-            nock(api_base).get('/cp/lum_local_conf')
-            .query({customer: 'abc', proxy: pkg.version, token: ''})
-            .reply(200, {_defaults});
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {_defaults});
+            nock(api_base).post('/update_lpm_stats').query(true)
+                .reply(200, {});
+            nock(api_base).post('/update_lpm_config').query(true)
+                .reply(200, {});
+            app = yield app_with_config({config, cli: {token: '123'}});
             const res = yield json('api/proxies', 'post',
                 {proxy: {port: 24000, zone: 'zone1'}});
             assert.equal(res.data.password, 'zone1_pass');
@@ -473,10 +514,14 @@ describe('manager', ()=>{
             const config = {proxies: []};
             const _defaults = {zone: 'static', password: 'xyz',
                 zones: {static: {password: ['static_pass']}}};
-            app = yield app_with_config({config, cli: {}});
-            nock(api_base).get('/cp/lum_local_conf')
-            .query({customer: 'abc', proxy: pkg.version, token: ''})
-            .reply(200, {_defaults});
+            nock(api_base).get('/').times(3).reply(200, {});
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {_defaults});
+            nock(api_base).post('/update_lpm_stats').query(true)
+                .reply(200, {});
+            nock(api_base).post('/update_lpm_config').query(true)
+                .reply(200, {});
+            app = yield app_with_config({config, cli: {token: '123'}});
             const res = yield json('api/proxies', 'post',
                 {proxy: {port: 24000, zone: 'static'}});
             assert.equal(res.data.password, 'static_pass');
@@ -494,30 +539,37 @@ describe('manager', ()=>{
             assert.equal(res.data.password, 'p1_pass');
         }));
         it('uses existing proxy custom password', etask._fn(function*(_this){
-            const _defaults = {zone: 'static', password: 'xyz', zones: {
-                static: {password: ['static_pass']},
-                zone2: {password: ['zone2_pass']},
-            }};
-            nock(api_base).get('/cp/lum_local_conf')
-            .query({customer: 'abc', proxy: pkg.version, token: ''})
-            .reply(200, {_defaults});
+            const _defaults = {
+                zone: 'static',
+                password: 'xyz',
+                zones: {
+                    static: {password: ['static_pass']},
+                    zone2: {password: ['zone2_pass']},
+                },
+            };
+            nock(api_base).get('/').times(3).reply(200, {});
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {_defaults});
+            nock(api_base).post('/update_lpm_stats').query(true)
+                .reply(200, {});
+            nock(api_base).post('/update_lpm_config').query(true)
+                .reply(200, {});
             const config = {proxies: [
                 {port: 24000, zone: 'static', password: 'p1_pass'},
                 {port: 24001, zone: 'zone2', password: 'p2_pass'},
                 {port: 24002, zone: 'static'},
                 {port: 24003, zone: 'zone2'},
                 {port: 24004},
+                {port: 24005, zone: 'unknown', password: 'p3_pass'},
             ]};
-            app = yield app_with_config({config, cli: {}});
+            app = yield app_with_config({config, cli: {token: '123'}});
             const res = yield json('api/proxies_running');
-            const t = (port, pwd)=>{
-                assert.equal(res.find(p=>p.port==port).password, pwd);
-            };
-            t(24000, 'p1_pass');
-            t(24001, 'p2_pass');
-            t(24002, 'static_pass');
-            t(24003, 'zone2_pass');
-            t(24004, 'static_pass');
+            assert.equal(res.find(p=>p.port==24000).password, 'static_pass');
+            assert.equal(res.find(p=>p.port==24001).password, 'zone2_pass');
+            assert.equal(res.find(p=>p.port==24002).password, 'static_pass');
+            assert.equal(res.find(p=>p.port==24003).password, 'zone2_pass');
+            assert.equal(res.find(p=>p.port==24004).password, 'static_pass');
+            assert.equal(res.find(p=>p.port==24005).password, 'p3_pass');
         }));
     });
     describe('flags', ()=>{
@@ -530,9 +582,62 @@ describe('manager', ()=>{
             yield this.wait();
         }));
     });
+    describe('whitelisting', ()=>{
+        const t = (name, proxies, default_calls, wh, cli)=>
+        it(name, etask._fn(function*(_this){
+            const port = proxies[0].port;
+            app = yield app_with_proxies(proxies, cli);
+            for (const c of default_calls)
+                app.manager.set_whitelist_ips(c);
+            const {whitelist_ips} = app.manager.proxy_ports[port].opt;
+            assert.deepEqual(whitelist_ips, wh);
+            const res = yield make_user_req();
+            const whitelists = res.body.response.headers.find(
+                h=>h.name=='x-lpm-whitelist');
+            assert.ok(!!whitelists);
+            assert.equal(whitelists.value, wh.join(' '));
+        }));
+        const p = [{port: 24000}];
+        const p_w = [{port: 24000, whitelist_ips: ['1.1.1.1']}];
+        const w_cli = {whitelist_ips: ['1.2.3.4', '4.3.2.1']};
+        t('sets from cmd', p, [], ['1.2.3.4', '4.3.2.1'], w_cli);
+        t('sets default', p, [['2.2.2.2']], ['2.2.2.2']);
+        t('sets specific', p_w, [], ['1.1.1.1']);
+        t('sets cmd and default', p, [['2.2.2.2']],
+            ['1.2.3.4', '4.3.2.1', '2.2.2.2'], w_cli);
+        t('sets cmd and specific', p_w, [], ['1.2.3.4', '4.3.2.1', '1.1.1.1'],
+            w_cli);
+        t('sets default and specific', p_w, [['2.2.2.2']],
+            ['2.2.2.2', '1.1.1.1']);
+        t('sets cmd, default and specific', p_w, [['2.2.2.2']],
+            ['1.2.3.4', '4.3.2.1', '2.2.2.2', '1.1.1.1'], w_cli);
+        t('removes IPs from proxy port config when removed in default ', p_w,
+            [['2.2.2.2', '3.3.3.3'], []], ['1.2.3.4', '4.3.2.1', '1.1.1.1'],
+            w_cli);
+        it('updates proxy', ()=>etask(function*(){
+            app = yield app_with_proxies(p);
+            const whitelist_ips = ['1.1.1.1', '2.2.2.2', '3.0.0.0/8'];
+            const new_proxy = Object.assign({}, p[0], {whitelist_ips});
+            const opt = yield app.manager.proxy_update(p[0], new_proxy);
+            assert.deepEqual(opt.whitelist_ips, whitelist_ips);
+        }));
+        it('should not save default/cmd whitelist', ()=>etask(function*(){
+            const def = ['3.3.3.3', '4.4.4.4'], expected = ['7.8.9.10'];
+            const proxies = [{port: 24000, whitelist_ips:
+                w_cli.whitelist_ips.concat(def).concat(expected)}];
+            app = yield app_with_proxies(proxies, w_cli);
+            const m = app.manager;
+            m.set_whitelist_ips(def);
+            const s = m.config.serialize(m.proxies, m._defaults);
+            const config = JSON.parse(s);
+            const proxy = config.proxies[0];
+            assert.equal(proxy.port, proxies[0].port);
+            assert.deepEqual(proxy.whitelist_ips, expected);
+    }));
+    });
     xdescribe('migrating', ()=>{
         beforeEach(()=>{
-            log_stub.reset();
+            logger_stub.reset();
         });
         const t = (name, should_run_migrations, config={}, cli={})=>
         it(name, etask._fn(function*(_this){
@@ -540,9 +645,12 @@ describe('manager', ()=>{
             const first_migration_match = sinon.match(notice);
             app = yield app_with_config({config, cli});
             if (should_run_migrations)
-                sinon.assert.calledWith(log_stub, first_migration_match);
+                sinon.assert.calledWith(logger_stub, first_migration_match);
             else
-                sinon.assert.neverCalledWith(log_stub, first_migration_match);
+            {
+                sinon.assert.neverCalledWith(logger_stub,
+                    first_migration_match);
+            }
         }));
         t('should run migrations if config file exists and version is old',
             true, {proxies: [{}]});
@@ -551,5 +659,169 @@ describe('manager', ()=>{
         t('should not run migrations if config does not exist', false);
         t('should not run migrations if config exists and version is new',
             false, {_defaults: {version: '1.120.0'}});
+    });
+    describe('first actions', ()=>{
+        const filepath = path.join(os.tmpdir(), 'first_actions.json');
+        const rm_actions_file = ()=>{
+            if (fs.existsSync(filepath))
+                fs.unlinkSync(filepath);
+        };
+        let perr_stub;
+        before(()=>lpm_config.first_actions = filepath);
+        after(()=>nock.cleanAll());
+        beforeEach(()=>{
+            nock(api_base).get('/').reply(200, {}).persist();
+            ['/update_lpm_stats', '/update_lpm_config'].forEach(p=>
+                nock(api_base).post(p).query(true).reply(200, {}).persist());
+            rm_actions_file();
+            perr_stub = sstub(Manager.prototype, 'perr');
+        });
+        afterEach(()=>{
+            rm_actions_file();
+            perr_stub.restore();
+        });
+        const m = a=>smatch(`first_${a}`);
+        const perr_called_n_times_with = (a, n)=>{
+            const event = `first_${a}`;
+            const calls = perr_stub.getCalls().filter(c=>c.args[0]==event);
+            assert.equal(calls.length, n);
+        };
+        const t = (name, called, action, config, conf_success=true)=>
+        it(name, etask._fn(function*(_this){
+            const i = nock(api_base).get('/cp/lum_local_conf').query(true);
+            if (conf_success)
+                i.reply(200, {mock_result: true, _defaults: true});
+            else
+                i.reply(403);
+            app = yield app_with_config({config, cli: {token: '123'}});
+            if (called)
+                sinon.assert.calledWith(perr_stub, m(action));
+            else
+                sinon.assert.neverCalledWith(perr_stub, m(action));
+        }));
+        t('triggers login on startup if logged', true, 'login');
+        t('does not triggers login on startup if not logged', false, 'login',
+            null, false);
+        t('triggers create_proxy_port on startup if custom port created', true,
+            'create_proxy_port', {proxies: [{port: 24023}, {port: 24024}]});
+        t('does not trigger create_proxy_port on startup if no custom ports',
+            false, 'create_proxy_port');
+        t('never triggers send_request on startup', false, 'send_request');
+        t('never triggers send_request_successful on startup', false,
+            'send_request_successful');
+        it('maintains actions object structure when file does not exist',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {mock_result: true, _defaults: true});
+            app = yield app_with_config({cli: {token: '123'}});
+            sinon.assert.match(app.manager.first_actions,
+                smatch({sent: {}, sending: {}, pending: []}));
+        }));
+        it('maintains actions object structure when file is missing fields',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {mock_result: true, _defaults: true});
+            fs.writeFileSync(lpm_config.first_actions, JSON.stringify({}));
+            app = yield app_with_config({cli: {token: '123'}});
+            sinon.assert.match(app.manager.first_actions,
+                smatch({sent: {}, sending: {}, pending: []}));
+        }));
+        it('does not trigger actions on zone password authentication',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true).reply(403);
+            app = yield app_with_config({config: {proxies: [{port: 24010}]},
+                cli: {customer: false, token: '123'}});
+            yield make_user_req(24010);
+            sinon.assert.neverCalledWith(perr_stub, smatch('first'));
+        }));
+        it('triggers create_proxy_port_def when using dropin',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {mock_result: true, _defaults: true});
+            app = yield app_with_config({cli: {token: '123', dropin: true}});
+            yield make_user_req(22225);
+            const matches = ['login', 'create_proxy_port_def', 'send_request',
+                'send_request_successful'].map(m);
+            matches.forEach(_m=>sinon.assert.calledWith(perr_stub, _m));
+            sinon.assert.neverCalledWith(perr_stub,
+                smatch(/^first_create_proxy_port$/));
+        }));
+        it('triggers failed actions after error has happened',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {mock_result: true, _defaults: true});
+            perr_stub.returns(etask.reject(Error('Network error')));
+            app = yield app_with_config({cli: {token: '123', dropin: true}});
+            yield make_user_req(22225);
+            perr_stub.resetBehavior();
+            yield make_user_req(22225);
+            // called 3 times due to logged_update and retry on mgr.start
+            perr_called_n_times_with('login', 3);
+            perr_called_n_times_with('create_proxy_port_def', 2);
+            perr_called_n_times_with('send_request', 2);
+            perr_called_n_times_with('send_request_successful', 2);
+        }));
+        it('stops retrying if action has already been retried',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {mock_result: true, _defaults: true});
+            perr_stub.restore();
+            perr_stub = sstub(Manager.prototype, 'perr', id=>{
+                if (!id.startsWith('first'))
+                    return;
+                if (id == 'first_send_request')
+                    return;
+                return etask.reject(Error('Network error'));
+            });
+            app = yield app_with_config({cli: {token: '123', dropin: true}});
+            yield make_user_req(22225);
+            yield make_user_req(22225);
+            const failed = ['login', 'create_proxy_port_def',
+                'send_request_successful'];
+            perr_called_n_times_with('send_request', 1);
+            // called 3 times due to logged_update and retry on mgr.start
+            perr_called_n_times_with('login', 3);
+            failed.slice(1).forEach(a=>perr_called_n_times_with(a, 2));
+            assert.equal(app.manager.first_actions.pending.filter(
+                d=>failed.includes(d.action)).length, failed.length);
+        }));
+        it('does not trigger send_request events on proxy status request',
+        etask._fn(function*(_this){
+            nock(api_base).get('/cp/lum_local_conf').query(true)
+                .reply(200, {mock_result: true, _defaults: true});
+            app = yield app_with_config({cli: {token: '123', dropin: true}});
+            yield api('api/proxy_status/22225');
+            sinon.assert.neverCalledWith(perr_stub, m('send_request'));
+        }));
+    });
+    describe('should_resolve_proxy', ()=>{
+        it('rotating, no max_requests', ()=>{
+            const conf = {preset: 'rotating', max_requests: 0};
+            assert.ok(!Manager.should_resolve_proxy(conf));
+        });
+        it('rotating 0', ()=>{
+            const conf = {preset: 'rotating', max_requests: 0};
+            assert.ok(!Manager.should_resolve_proxy(conf));
+        });
+        it('rotating 1', ()=>{
+            const conf = {preset: 'rotating', max_requests: 1};
+            assert.ok(!Manager.should_resolve_proxy(conf));
+        });
+        it('rotating 5', ()=>{
+            const conf = {preset: 'rotating', max_requests: 5};
+            assert.ok(Manager.should_resolve_proxy(conf));
+        });
+        it('long single session', ()=>{
+            const conf = {preset: 'session_long'};
+            assert.ok(Manager.should_resolve_proxy(conf));
+        });
+        it('long-availability', ()=>{
+            const conf = {preset: 'long_availability'};
+            assert.ok(Manager.should_resolve_proxy(conf));
+        });
+        it('sticky_ip', ()=>{
+            const conf = {preset: 'sticky_ip'};
+            assert.ok(Manager.should_resolve_proxy(conf));
+        });
     });
 });

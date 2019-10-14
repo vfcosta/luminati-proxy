@@ -18,13 +18,11 @@ const debug_opt = [
     {key: 'full', value: 'full'},
 ];
 
-const log_level_opt = [
-    {key: `Default (error)`, value: ''},
-    {key: `none`, value: 'none'},
-    {key: `error`, value: 'error'},
-    {key: `warn`, value: 'warn'},
-    {key: `notice`, value: 'notice'},
-    {key: `info`, value: 'info'},
+const proxy_connection_type_opt = [
+    {key: 'Default (HTTP)', value: ''},
+    {key: 'HTTP', value: 'http'},
+    {key: 'HTTPS', value: 'https'},
+    {key: 'SOCKS5', value: 'socks'},
 ];
 
 export default class General extends Pure_component {
@@ -37,6 +35,9 @@ export default class General extends Pure_component {
         });
         this.setdb_on('head.consts', consts=>{
             consts && consts.proxy && this.setState({proxy: consts.proxy});
+        });
+        this.setdb_on('head.settings', settings=>{
+            settings && this.setState({settings});
         });
     }
     multiply_changed = val=>{
@@ -52,18 +53,20 @@ export default class General extends Pure_component {
         this.set_field('pool_size', size);
         this.set_field('multiply', 1);
     };
+    on_change_ssl = ssl=>{
+        if (!ssl && this.state.form.insecure)
+            this.set_field('insecure', false);
+    };
     open_modal = ()=>$('#allocated_ips').modal('show');
     render(){
-        if (!this.state.form)
+        if (!this.state.form || !this.state.proxy || !this.state.settings)
             return null;
-        if (!this.state.proxy)
-            return null;
-        // XXX krzysztof: cleanup type
+        // XXX krzysztof: cleanup type (index.js rotation.js general.js)
         const curr_plan = this.get_curr_plan();
         let type;
-        if (curr_plan&&curr_plan.type=='static')
+        if (curr_plan && (curr_plan.type||'').startsWith('static'))
             type = 'ips';
-        else if (curr_plan&&!!curr_plan.vip)
+        else if (curr_plan && !!curr_plan.vip)
             type = 'vips';
         const form = this.state.form;
         const note_ips = form.multiply_ips ?
@@ -72,16 +75,18 @@ export default class General extends Pure_component {
         const note_vips = form.multiply_vips ?
             <a className="link" onClick={this.open_modal}>Select gIPs</a> :
             null;
+        const disabled_wl = (this.state.settings.cmd_whitelist_ips||[]).concat(
+            this.state.settings.whitelist_ips);
         return <div className="general">
               <Tab_context.Provider value="general">
                 <Config type="text" id="internal_name"/>
                 <Config type="number" id="port"/>
-                <Config type="number" id="socks" disabled={true}
-                  val_id="port"/>
-                <Config type="text" id="password" disabled/>
-                <Config type="pins" id="whitelist_ips"/>
-                <Config type="yes_no" id="ssl"/>
-                <Config type="yes_no" id="secure_proxy"/>
+                <Config type="pins" id="whitelist_ips" disabled={disabled_wl}/>
+                <Config type="select" data={proxy_connection_type_opt}
+                  id="proxy_connection_type"/>
+                <Config type="yes_no" id="ssl" on_change={this.on_change_ssl}/>
+                <Config type="yes_no" id="insecure"
+                    disabled={!this.state.form.ssl}/>
                 <Config type="select" data={route_err_opt} id="route_err"/>
                 <Config type="select_number" id="multiply"
                   data={[0, 5, 20, 100, 500]}
@@ -97,7 +102,6 @@ export default class General extends Pure_component {
                 <Config type="select" id="iface"
                   data={this.state.proxy.iface.values}/>
                 <Config type="pins" id="smtp" exact/>
-                <Config type="select" id="log" data={log_level_opt}/>
                 <Config type="select" id="debug" data={debug_opt}/>
               </Tab_context.Provider>
             </div>;

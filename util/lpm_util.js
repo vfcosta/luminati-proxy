@@ -7,8 +7,6 @@ const pkg = require('../package.json');
 const analytics = require('../lib/analytics.js');
 const lpm_config = require('./lpm_config.js');
 const zerr = require('../util/zerr.js');
-const string = require('../util/string.js');
-const qw = string.qw;
 const E = module.exports;
 
 const parse_env_params = (env, fields)=>{
@@ -64,6 +62,12 @@ E.init_args = args=>{
         usage.unshift('  docker run luminati/luminati-proxy '
             +'[docker port redirections]');
     }
+    const alias = {
+        help: ['h', '?'],
+        port: 'p',
+        daemon: 'd',
+        version: 'v',
+    };
     const defaults = Object.assign({}, lpm_config.manager_default,
         parse_env_params(process.env, lpm_config.proxy_fields));
     args = (args||process.argv.slice(2)).map(String);
@@ -74,12 +78,10 @@ E.init_args = args=>{
     .number(lpm_config.numeric_fields)
     .default(defaults)
     .help('h')
-    .alias({'help': ['h', '?'], port: 'p', daemon: 'd', 'version': 'v'})
+    .alias(alias)
     .version(()=>pkg.version)
     .argv;
     argv.native_args = args;
-    if (argv.log instanceof Array)
-        argv.log = argv.log.pop();
     argv.log = argv.log.toLowerCase();
     if (argv.session=='true')
         argv.session = true;
@@ -87,7 +89,6 @@ E.init_args = args=>{
         .filter(p=>args.includes(`--${p}`)));
     if (args.includes('-p'))
         argv.explicit_opt.port = argv.port;
-    argv.overlay_opt = _.omit(argv.explicit_opt, qw`port`);
     argv.daemon_opt = args.filter(arg=>arg.includes('daemon')||arg=='-d')
     .map(arg=>{
         let match;

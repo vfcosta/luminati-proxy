@@ -49,32 +49,16 @@ export const tabs = {
         tooltip: 'Control the speed of your request to improve performance',
         fields: {
             proxy: {
-                label: `Super-Proxy's location`,
-                tooltip: `For a shorter latency to the Super-Proxy, you can
-                    choose its location. Please note that this does not
-                    restrict the IPs chosen country but will simply improve
-                    performances by using #Super-Proxies which have shorter
-                    roundtrips relative to your current location.`,
-            },
-            dns: {
-                label: 'DNS lookup',
-                tooltip: 'Location of DNS resolve',
+                label: `Super Proxy location`,
+                tooltip: `Location of Super Proxy is chosen automatically.
+                    Sometimes choosing Chinese Super Proxy works better when
+                    also using Chinese peers`,
             },
             race_reqs: {
                 label: 'Parallel race requests',
                 tooltip: `Sends multiple requests in parallel via different
-                    Super-Proxies and uses the fastest request.`,
+                    Super Proxies and uses the fastest request.`,
                 placeholder: 'Number of parallel requests'
-            },
-            proxy_count: {
-                label: 'Minimum number of super proxies',
-                tooltip: `The minimal number of Super-Proxies to use in
-                    parallel.`,
-            },
-            proxy_switch: {
-                label: 'Switch super proxy on failure',
-                tooltip: `Number of failed requests (status 403, 429, 502, 503)
-                    to switch to different super proxy`,
             },
             throttle: {
                 label: 'Throttle requests',
@@ -82,8 +66,12 @@ export const tabs = {
                     Allow a maximal number of parallel requests.`,
                 ext: true,
             },
+            dns: {
+                label: 'DNS lookup',
+                tooltip: 'Location of DNS resolve',
+            },
             reverse_lookup: {
-                label: 'Reverse resolve',
+                label: 'Reverse DNS lookup',
                 tooltip: 'Resolve DNS from IP to url',
                 ext: true,
             },
@@ -141,12 +129,6 @@ export const tabs = {
                 tooltip: `The action to be executed when the rule's condition
                     is met`,
             },
-            fast_pool_size: {
-                label: 'Fast pool size',
-                tooltip: `The system will store fast IPs up to the selected
-                    pool size number. Once pool size is reached, the system
-                    will use IPs from the fast IPs pool to route requests.`,
-            },
             retry_number: {
                 label: 'Retries',
                 tooltip: 'Maximum number of retries to execute',
@@ -176,6 +158,11 @@ export const tabs = {
                     time (to timeout the request and retry).`,
             },
             process: {label: 'Processing rule'},
+            request_url: {label: 'URL'},
+            request_method: {label: 'Method'},
+            request_payload: {label: 'Payload', tooltip: `Payload sent in the
+                request. The IP used for the request will be sent in a field
+                if its value equals "$IP"`},
             send_email: {
                 label: 'Send email',
                 tooltip: `Every time the rule is triggered and executed, the
@@ -280,7 +267,8 @@ export const tabs = {
             },
             random_user_agent: {
                 label: 'Random User-Agent',
-                tooltip: 'Set a random User-Agent header for each request',
+                tooltip: `Set a random User-Agent header targeting the
+                    specified device type for each request`,
             },
             override_headers: {
                 label: 'Override headers',
@@ -292,8 +280,7 @@ export const tabs = {
     },
     general: {
         label: 'General',
-        tooltip: `General configuration such as 'port number', 'password', and
-            'bypassing'`,
+        tooltip: `General configuration such as 'port number'`,
         fields: {
             internal_name: {
                 label: 'Internal name',
@@ -309,44 +296,23 @@ export const tabs = {
                     proxy configuration`,
                 ext: true,
             },
-            socks: {
-                label: 'SOCKS 5 port',
-                tooltip: `A SOCKS 5 port is the same as a proxy port, and is
-                    automatically created`,
-                ext: true,
-            },
-            password: {
-                label: 'Zone password',
-                tooltip: `The Zone password, as it appears in 'Zones' page in
-                    Luminati's control panel http://luminati.io/cp/zones`,
-            },
-            whitelist_ips: {
-                label: 'Whitelist IP access',
-                tooltip: `Grant proxy access to specific IPs. Only those IPs
-                    will be able to send requests via this proxy port. Any
-                    value set in this field will override the 'General
-                    settings' and 'Proxy whitelisted IPs' for this port.`,
-                placeholder: `e.g. 1.1.1.1, 23.23.23.23`,
-                ext: true,
-            },
             ssl: {
                 label: 'SSL analyzing',
                 tooltip: `Enable SSL request logs in order to save HTTPs
                     requests`,
                 ext: true,
             },
-            secure_proxy: {
-                label: 'SSL to super proxy',
-                tooltip: `Encrypt requests sent to the Super-Proxy to avoid
-                    detection on DNS`,
+            proxy_connection_type: {
+                label: 'Connection to Super Proxy',
+                tooltip: 'Connection type between LPM and Super Proxy',
             },
             route_err: {
                 label: 'Route',
                 tooltip: `<div><b>pass_dyn:</b> If a request can't pass via `
-                    +`peer, automatically pass it via the Super-Proxy`
+                    +`peer, automatically pass it via the Super Proxy`
                     +`<br><b>block</b> If a `
                     +`request can't pass via peer, block it and don't `
-                    +`send via Super-Proxy</div>`,
+                    +`send via Super Proxy</div>`,
             },
             multiply: {
                 label: 'Multiply proxy port',
@@ -369,11 +335,11 @@ export const tabs = {
                     +'the local machine is running',
                 ext: true,
             },
-            log: {
-                label: 'Log level',
-                tooltip: `Decide how elaborate is the debugging information
-                    that you see in the console's log`,
-                ext: true,
+            insecure: {
+                label: 'Insecure',
+                tooltip: `It works only when SSL analyzing is enabled. You can
+                    enable this option to ignore checking certificates of SSL
+                    connection`,
             },
             debug: {
                 label: 'Luminati request debug info',
@@ -388,6 +354,11 @@ export const tabs = {
                 tooltip: `IPs that will be randomly chosen to proxy whole
                     traffic through SMTP protocol`,
             },
+            whitelist_ips: {
+                label: 'Whitelisted IPs',
+                tooltip: `Default access grant for this port. Only these
+                    IPs will be able to send requests to this port by default`
+            }
         },
     },
 };

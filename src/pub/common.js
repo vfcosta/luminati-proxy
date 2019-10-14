@@ -10,9 +10,8 @@ import 'codemirror/mode/javascript/javascript';
 import 'codemirror/lib/codemirror.css';
 import $ from 'jquery';
 import {bytes_format, presets} from './util.js';
-import {Pins, Select_status, Select_number, Yes_no,
-    Regex, Json, Textarea, Typeahead_wrapper, Input,
-    Select} from './common/controls.js';
+import {Pins, Select_status, Select_number, Yes_no, Regex, Json, Textarea,
+    Typeahead_wrapper, Input, Select, Url_input} from './common/controls.js';
 import Tooltip from './common/tooltip.js';
 import {T, with_tt, Language} from './common/i18n.js';
 
@@ -156,6 +155,8 @@ export const Form_controller = props=>{
         return <Textarea {...props}/>;
     else if (type=='json')
         return <Json {...props}/>;
+    else if (type=='url')
+        return <Url_input {...props}/>;
     else if (type=='regex')
         return <Regex {...props}/>;
     else if (type=='yes_no')
@@ -169,7 +170,7 @@ export const Form_controller = props=>{
     return <Input {...props}/>;
 };
 
-const Copy_btn = with_tt(['Copy to clipboard', 'Copy'],
+export const Copy_btn = with_tt(['Copy to clipboard', 'Copy'],
 class Copy_btn extends Pure_component {
     textarea = React.createRef();
     btn = React.createRef();
@@ -193,11 +194,11 @@ class Copy_btn extends Pure_component {
         } catch(e){ console.log('Oops, unable to copy'); }
     };
     render(){
-        const {t} = this.props;
-        return <div className="copy_btn">
+        return <div className="copy_btn" style={this.props.style}>
               <button onClick={this.copy} data-container="body"
+                style={this.props.inner_style}
                 ref={this.btn} className="btn btn_lpm btn_lpm_small btn_copy">
-                {t['Copy']}
+                {this.props.title||'Copy'}
               </button>
               <textarea ref={this.textarea}
                 style={{position: 'fixed', top: '-1000px'}}/>
@@ -255,25 +256,27 @@ export const Field_row_raw = ({disabled, note, animated, ...props})=>{
         </div>;
 };
 
-export const Labeled_controller = ({id, disabled, note, sufix, ...props})=>
-    <Field_row_raw disabled={disabled} note={note} animated={props.animated}
-      inner_style={props.field_row_inner_style}>
+export const Labeled_controller = props=>
+    <Field_row_raw disabled={props.disabled} note={props.note}
+      animated={props.animated} inner_style={props.field_row_inner_style}>
       <T>{t=><React.Fragment>
         <div className="desc" style={props.desc_style}>
           <Tooltip title={t(props.tooltip)}>{t(props.label)}</Tooltip>
         </div>
         <div>
-          <div className="field" data-tip data-for={id+'tip'}>
-            <Form_controller disabled={disabled} {...props}/>
-            {sufix && <span className="sufix">{t(sufix)}</span>}
+          <div className="field" data-tip data-for={props.id+'tip'}>
+            {props.children ||
+              <Form_controller disabled={props.disabled} {...props}/>
+            }
+            {props.sufix && <span className="sufix">{t(props.sufix)}</span>}
             {props.field_tooltip &&
-              <React_tooltip id={id+'tip'} type="light" effect="solid"
+              <React_tooltip id={props.id+'tip'} type="light" effect="solid"
                 delayHide={30} delayUpdate={300} place="right">
                 {t(props.field_tooltip)}
               </React_tooltip>
             }
           </div>
-          {note && <Note>{t(note)}</Note>}
+          {props.note && <Note>{t(props.note)}</Note>}
         </div>
       </React.Fragment>}</T>
     </Field_row_raw>;
@@ -282,7 +285,8 @@ export const Checkbox = props=>
   <div className="form-check">
     <label className="form-check-label">
       <input className="form-check-input" type="checkbox" value={props.value}
-        onChange={e=>props.on_change(e)} checked={props.checked}/>
+        onChange={props.on_change} onClick={props.on_click}
+        checked={props.checked}/>
         {props.text}
     </label>
   </div>;

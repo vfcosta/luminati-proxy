@@ -34,10 +34,13 @@ E.action_types = [
         configuration.`, min_req_time: true, url: true},
     {key: 'Ban IP', value: 'ban_ip', tooltip: `Will ban the IP for custom
         amount of time. Usually used for failed requests.`, min_req_time: true,
-        type: 'post'},
+        url: true, type: 'post'},
+    {key: 'Ban IP globally', value: 'ban_ip_global', tooltip: `The same as
+        'Ban IP' action but will ban the IP globally for all the proxy ports
+        configured on this LPM.`, min_req_time: true, url: true, type: 'post'},
     {key: 'Ban IP per domain', value: 'ban_ip_domain', tooltip: `Will ban the
         IP for custom amount of time per domain.`, min_req_time: true,
-        type: 'post'},
+        url: true, type: 'post'},
     {key: 'Refresh IP', value: 'refresh_ip', tooltip: `Refresh the current
         Data Center IP with new allocated IP. This action contain
         additional charges. View the cost of IP refreshing in your zones
@@ -45,9 +48,6 @@ E.action_types = [
     {key: 'Save IP to reserved pool', value: 'save_to_pool', tooltip: `Save
         the current IP to a pool of reserved IPs.  you can then download all
         the IPs at a later time.`, type: 'post'},
-    {key: 'Save IP to fast pool', value: 'save_to_fast_pool', tooltip: `Save
-        the current IP to fast IP pool to increase the speed of your requests.
-        You will need to specify the size of this pool.`, type: 'post'},
     {key: 'Null response', value: 'null_response', tooltip: `LPM will return a
         "null response" without proxying. It is useful when users do not want
         to make a request, but a browser expects 200 response.`, type: 'pre',
@@ -60,6 +60,8 @@ E.action_types = [
         only_url: true, url: true},
     {key: 'Process data', value: 'process', only_url: true, url: true,
         type: 'post'},
+    {key: 'Request URL', value: 'request_url', tooltip: `Defined URL will be
+        requested after current request is finished`, url: true, type: 'post'},
 ];
 
 const gen_function = (name, body)=>{
@@ -125,6 +127,21 @@ E.migrate_action = rule=>{
     return Object.assign({}, rule, {action_code: get_action(rule)});
 };
 
+const stringify_obj = obj=>{
+    let str = '{';
+    const keys = Object.keys(obj);
+    for (let i=0; i<keys.length; ++i)
+    {
+        const k = keys[i], v = obj[k];
+        const val = typeof v == 'object' ?
+            stringify_obj(v) : JSON.stringify(v);
+        str += `${k}: ${val}`;
+        if (i < keys.length - 1)
+            str += ', ';
+    }
+    return str + '}';
+};
+
 const get_action = rule=>{
     let body = '';
     if (!rule.action)
@@ -137,6 +154,11 @@ const get_action = rule=>{
         body += `opt.retry({port: ${rule.action.retry_port}});\n`;
     if (rule.action.ban_ip!=undefined)
         body += `opt.ban_ip({ts: ${rule.action.ban_ip}});\n`;
+    if (rule.action.ban_ip_global!=undefined)
+    {
+        body += `opt.ban_ip({ts: ${rule.action.ban_ip_global}, `
+            +`global: true});\n`;
+    }
     if (rule.action.ban_ip_domain!=undefined)
     {
         body += `opt.ban_ip({ts: ${rule.action.ban_ip_domain}, `
@@ -146,13 +168,13 @@ const get_action = rule=>{
         body += `opt.refresh_ip();\n`;
     if (rule.action.reserve_session)
         body += `opt.save_to_pool();\n`;
-    if (rule.action.fast_pool_session)
-    {
-        const size = rule.action.fast_pool_size||0;
-        body += `opt.save_to_pool({name: 'fast', size: ${size}});\n`;
-    }
     if (rule.action.process)
-        body += `opt.process(`+JSON.stringify(rule.action.process)+`);\n`;
+        body += `opt.process(${JSON.stringify(rule.action.process)});\n`;
+    if (rule.action.request_url)
+    {
+        const str = stringify_obj(rule.action.request_url);
+        body += `opt.request_url(${str});\n`;
+    }
     if (rule.action.null_response)
         body += `opt.null_response();\n`;
     if (rule.action.direct)

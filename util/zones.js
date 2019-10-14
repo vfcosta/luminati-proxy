@@ -1,24 +1,9 @@
 // LICENSE_CODE ZON ISC
 'use strict'; /*jslint node:true, esnext:true*/
-const date = require('../util/date.js');
 const E = module.exports;
 
-E.get_plan = plans=>{
-    const d = date();
-    plans = plans||[];
-    for (let i=plans.length-1; i>=0; i--)
-    {
-        if (date(plans[i].start)<=d)
-        {
-            if (plans[i].end && d>=date(plans[i].end))
-                return;
-            return plans[i];
-        }
-    }
-};
-
 E.get_perm = zone=>{
-    const plan = E.get_plan(zone.plans);
+    const plan = zone.plan;
     if (!plan || !plan.type)
         return zone.perm;
     const perm = {
@@ -49,31 +34,30 @@ E.get_perm = zone=>{
 };
 
 E.get_password = (proxy, zone_name, zones)=>{
-    if (proxy.password)
-        return proxy.password;
     const zone = zones.find(z=>z.zone==zone_name);
-    return zone && zone.password;
+    if (zone && zone.password)
+        return zone.password;
+    if (proxy && proxy.password)
+        return proxy.password;
 };
 
-E.is_static_proxy = (proxy, zones)=>{
-    const zone = zones.find(z=>z.zone==proxy.zone);
+E.is_static_proxy = (zone_name, zones)=>{
+    const zone = zones.find(z=>z.zone==zone_name);
     if (!zone)
         return false;
-    const plan = E.get_plan(zone.plans);
-    return plan && plan.type=='static';
+    return zone.plan && zone.plan.type=='static';
+};
+
+E.is_mobile = (zone_name, zones)=>{
+    const zone = zones.find(z=>z.zone==zone_name);
+    if (!zone)
+        return false;
+    return !!(zone.plan && zone.plan.mobile);
 };
 
 // XXX krzysztof: TODO
 function Zones_mgr(){
 }
 
-Zones_mgr.prototype.get_zone = function(zone_name){
-};
-
 E.Zones_mgr = Zones_mgr;
-
-E.get_zone = function(c){
-    const zones = ((this.lum_conf||{})._defaults||{}).zones;
-    return zones && zones[c.zone];
-};
 

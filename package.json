@@ -69,7 +69,6 @@
   "dependencies": {
     "body-parser": "1.15.2",
     "check-node-version": "2.0.1",
-    "country-language": "0.1.7",
     "electron-updater": "2.8.9",
     "express": "4.14.0",
     "flag-icon-css": "3.2.1",
@@ -91,11 +90,8 @@
     "prismjs": "1.8.4",
     "classnames": "2.2.5",
     "netmask": "1.0.6",
-    "rotating-file-stream": "1.3.4",
-    "server-destroy": "1.0.1",
     "uuid": "3.2.1",
     "compression": "1.7.2",
-    "json-object-stream": "0.1.1",
     "ws": "5.1.1",
     "diacritic": "0.0.2",
     "underscore": "1.8.3",
@@ -108,7 +104,10 @@
     "ps-list": "5.0.0",
     "download": "7.1.0",
     "extract-zip": "1.6.7",
-    "open": "6.2.0"
+    "open": "6.2.0",
+    "cookie": "0.4.0",
+    "winston": "3.2.1",
+    "winston-daily-rotate-file": "4.1.0"
   },
   "description": "A configurable local proxy for luminati.io",
   "devDependencies": {
@@ -148,7 +147,6 @@
     "react-tooltip": "3.8.4",
     "react-virtualized": "9.21.0",
     "style-loader": "0.18.2",
-    "swagger-ui": "2.2.8",
     "url-loader": "0.5.9",
     "file-saver": "1.3.3",
     "webpack": "3.4.0",
@@ -218,6 +216,7 @@
       "bin/pub/img/icon_explorer.png",
       "bin/pub/img/icon_firefox.jpg",
       "bin/pub/img/icon_safari.jpg",
+      "bin/pub/img/ic_admin.svg",
       "bin/pub/img/ic_browse.svg",
       "bin/pub/img/ic_browser.svg",
       "bin/pub/img/ic_cancel.svg",
@@ -226,6 +225,7 @@
       "bin/pub/img/ic_columns.svg",
       "bin/pub/img/ic_delete.svg",
       "bin/pub/img/ic_download_mini.svg",
+      "bin/pub/img/ic_guest.svg",
       "bin/pub/img/ic_off.svg",
       "bin/pub/img/ic_thumbs_down.svg",
       "bin/pub/img/ic_thumbs_up.svg",
@@ -283,23 +283,24 @@
       "changelog.json",
       "lib/analytics.js",
       "lib/cities.js",
+      "lib/config.js",
+      "lib/consts.js",
       "lib/context.js",
-      "lib/find_iface.js",
-      "lib/hash.js",
       "lib/hutil-loader.js",
       "lib/ip_cache.js",
       "lib/locations.js",
-      "lib/log.js",
+      "lib/logger.js",
       "lib/loki.js",
-      "lib/luminati.js",
       "lib/manager.js",
       "lib/md5_util.js",
       "lib/migration.js",
       "lib/perr.js",
+      "lib/proxy_port.js",
       "lib/puppeteer.js",
-      "lib/req_process.js",
+      "lib/requester.js",
       "lib/router.js",
       "lib/rules.js",
+      "lib/server.js",
       "lib/session.js",
       "lib/smtp.js",
       "lib/socks.js",
@@ -308,8 +309,11 @@
       "lib/tracer.js",
       "lib/username.js",
       "lib/util.js",
+      "lib/worker.js",
+      "lib/ws.js",
       "publish_cn.js",
       "publish_validate.js",
+      "scripts/stress_test.js",
       "src/pub/app.js",
       "src/pub/app.less",
       "src/pub/chrome_widgets.js",
@@ -325,6 +329,7 @@
       "src/pub/common/zone_desc.js",
       "src/pub/common.js",
       "src/pub/config.js",
+      "src/pub/cpu_warning.js",
       "src/pub/har_preview.js",
       "src/pub/har_viewer.js",
       "src/pub/howto.js",
@@ -339,6 +344,7 @@
       "src/pub/proxies.js",
       "src/pub/proxy_add.js",
       "src/pub/proxy_blank.js",
+      "src/pub/proxy_edit/alloc_modal.js",
       "src/pub/proxy_edit/common.js",
       "src/pub/proxy_edit/fields.js",
       "src/pub/proxy_edit/general.js",
@@ -359,10 +365,12 @@
       "src/pub/whitelist_ips.js",
       "src/pub/ws.js",
       "test/common.js",
+      "test/config.js",
       "test/index.js",
       "test/manager.js",
       "test/migration.js",
       "test/util.js",
+      "test/ws.js",
       "util/config.js",
       "util/lpm_config.js",
       "util/lpm_file.js",
@@ -371,15 +379,11 @@
       "util/zones.js",
       "webpack.config.js"
     ],
-    "md5": "14aa6a4be4cebb89cc424d8abc89424f"
+    "md5": "4920b1a96a8eea2f42b8899f80ba20cc"
   },
   "main": "bin/index.js",
   "name": "@luminati-io/luminati-proxy",
   "contributors": [
-    {
-      "name": "Colin Shribman",
-      "email": "colin@luminati.io"
-    },
     {
       "name": "Assaf Zarfaty",
       "email": "assafz@luminati.io"
@@ -408,6 +412,7 @@
     "start": "bin/index.js",
     "test": "./node_modules/mocha/bin/mocha",
     "test-win": "node node_modules/mocha/bin/mocha",
+    "stress-test": "node scripts/stress_test.js",
     "build": "node_modules/webpack/bin/webpack.js"
   },
   "pkg": {
@@ -432,5 +437,5 @@
       "node_modules/lum_windows-shortcuts/lib/shortcut/Shortcut.exe"
     ]
   },
-  "version": "1.137.946"
+  "version": "1.155.133"
 }

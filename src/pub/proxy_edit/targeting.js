@@ -43,7 +43,12 @@ export default class Targeting extends Pure_component {
         let res = this.state.locations.countries.map(c=>({
             key: c.country_name, value: c.country_id, mob: c.mob}));
         const curr_plan = this.get_curr_plan();
-        if (curr_plan && curr_plan.ip_alloc_preset=='shared_block')
+        if (curr_plan && curr_plan.country)
+        {
+            res = res.filter(r=>
+                curr_plan.country.split(' ').includes(r.value));
+        }
+        else if (curr_plan && curr_plan.ip_alloc_preset=='shared_block')
         {
             res = res.filter(r=>
                 this.state.locations.shared_countries.includes(r.value));
@@ -131,7 +136,17 @@ export default class Targeting extends Pure_component {
         const show_vips_note = curr_plan&&
             (curr_plan.vips_type=='domain'||curr_plan.vips_type=='domain_p');
         const carrier_disabled = !!this.state.form.asn &&
-            !! this.state.form.asn.length;
+            !!this.state.form.asn.length;
+        const filter_by_asns = (option, props)=>{
+            let low_text = props.text.toLowerCase();
+            if (low_text=='a'||low_text=='as')
+                return false;
+            if (low_text.startsWith('as'))
+                low_text = low_text.substr(2);
+            if (option.label.startsWith(low_text))
+                return true;
+            return false;
+        };
         return <div className="target">
               <Tab_context.Provider value="target">
                 {(show_dc_note||show_vips_note) &&
@@ -165,9 +180,12 @@ export default class Targeting extends Pure_component {
                   on_change={this.state_changed}/>
                 <Config type="typeahead" id="city" data={this.cities()}
                   on_change={this.city_changed}/>
-                <Config type="typeahead" id="asn" data={this.asns()}
-                  disabled={!!this.state.form.carrier} update_on_input
-                  depend_a={this.state.form.zone}/>
+                {!this.state.form.asn || !this.state.form.asn[1] &&
+                  <Config type="typeahead" id="asn" data={this.asns()}
+                    disabled={!!this.state.form.carrier} update_on_input
+                    depend_a={this.state.form.zone}
+                    filter_by={filter_by_asns}/>
+                }
                 <Config type="select" id="carrier" data={this.carriers()}
                   note={carriers_note} disabled={carrier_disabled}
                   depend_a={this.state.form.zone}/>

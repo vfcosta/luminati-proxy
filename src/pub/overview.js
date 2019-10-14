@@ -11,12 +11,13 @@ import Tooltip from './common/tooltip.js';
 import {T} from './common/i18n.js';
 
 class Overview extends Pure_component {
+    state = {show_logs: false};
     componentDidMount(){
-        this.setdb_on('head.proxies_running', proxies=>
-            this.setState({proxies}));
-        this.setdb_on('head.consts', consts=>this.setState({consts}));
+        this.setdb_on('head.settings', settings=>settings &&
+            this.setState({show_logs: settings.logs>0}));
     }
     render(){
+        const {show_logs} = this.state;
         const master_port = this.props.match.params.master_port;
         const title = master_port ?
             <span>
@@ -33,11 +34,9 @@ class Overview extends Pure_component {
                 <div className="proxies proxies_wrapper">
                   <Proxies master_port={master_port}/>
                 </div>
-                <div className="stats_wrapper">
-                  <Stats master_port={master_port}/>
-                </div>
+                <Stats/>
               </div>
-              <div className="logs_wrapper">
+              <div className="logs_wrapper" style={{flex: show_logs ? 2 : 0}}>
                 <Har_viewer master_port={master_port}/>
               </div>
             </div>;

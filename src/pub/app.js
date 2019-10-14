@@ -33,10 +33,12 @@ setdb.setMaxListeners(30);
 
 const App = withRouter(class App extends Pure_component {
     componentDidMount(){
+        setdb.set('head.save_settings', this.save_settings);
         const _this = this;
         this.etask(function*(){
             const version = yield ajax.json({url: '/api/version'});
             setdb.set('head.version', version.version);
+            setdb.set('head.argv', version.argv);
         });
         this.etask(function*(){
             this.on('uncaught', e=>console.log(e));
@@ -48,6 +50,8 @@ const App = withRouter(class App extends Pure_component {
                 return _this.props.history.replace('/whitelist_ips');
             }
             _this.load_data();
+            if (mode.headers.get('x-lpm-local-login'))
+                return _this.props.history.replace('/login');
             const data = yield mode.json();
             if (data.logged_in)
             {
@@ -89,7 +93,7 @@ const App = withRouter(class App extends Pure_component {
         this.etask(function*(){
             const defaults = yield ajax.json({url: '/api/defaults'});
             setdb.set('head.defaults', defaults);
-            ws.set_location(window.location.hostname, defaults.ws);
+            ws.set_location(window.location, defaults.ws);
         });
         this.etask(function*(){
             const node = yield ajax.json({url: '/api/node_version'});
@@ -107,6 +111,17 @@ const App = withRouter(class App extends Pure_component {
             const zones = yield ajax.json({url: '/api/zones'});
             setdb.set('head.zones', zones);
         });
+    };
+    save_settings = settings=>{
+      return this.etask(function*(){
+          const raw = yield window.fetch('/api/settings', {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(settings),
+          });
+          const new_settings = yield raw.json();
+          setdb.set('head.settings', new_settings);
+      });
     };
     render(){
         return <div className="page_wrapper">
@@ -194,57 +209,8 @@ const Page = ()=>
 const Root = ()=>
     <BrowserRouter>
       <Switch>
-        <Route path="/api_app/confirm_session/:port/:url" exact
-          component={Api_app}/>
         <Route path="/" component={App}/>
       </Switch>
     </BrowserRouter>;
-
-const Api_app = withRouter(class Api_app extends Pure_component {
-    state = {loaded: false};
-    componentDidMount(){
-        const port = this.props.match.params.port;
-        const _this = this;
-        this.etask(function*(){
-            const url = `api/proxies/${port}/termination_info`;
-            const res = yield ajax.json({url});
-            const terminated = res.terminated;
-            if (!terminated)
-            {
-                const next = decodeURIComponent(_this.props.match.params.url);
-                return window.location = next;
-            }
-            _this.setState({loaded: true, terminated});
-        });
-    }
-    refresh = ()=>{
-        const port = this.props.match.params.port;
-        const _this = this;
-        this.etask(function*(){
-            yield ajax({url: `/api/proxies/${port}/unblock`, method: 'POST'});
-            const next = decodeURIComponent(_this.props.match.params.url);
-            window.location = next;
-        });
-    };
-    goto_lpm = ()=>this.props.history.push('/');
-    render(){
-        const next_url = decodeURIComponent(this.props.match.params.url);
-        if (!this.state.loaded)
-            return null;
-        if (!this.state.terminated)
-            return 'Redirecting...';
-        return <div className="api_app">
-              <h1>The session has expired</h1>
-              <p>
-                <span>Do you want to refresh it? You will be </span>
-                <span>
-                  redirected to <strong>{next_url}</strong> with new IP.
-                </span>
-              </p>
-              <button onClick={this.goto_lpm}>Go to LPM</button>
-              <button onClick={this.refresh}>Refresh</button>
-            </div>;
-    }
-});
 
 ReactDOM.render(<Root/>, document.getElementById('react_root'));

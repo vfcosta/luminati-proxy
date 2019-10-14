@@ -7,9 +7,8 @@ import _ from 'lodash';
 import etask from '../../../util/etask.js';
 import ajax from '../../../util/ajax.js';
 import setdb from '../../../util/setdb.js';
-import zurl from '../../../util/url.js';
-import {Loader, Warnings, Link_icon, Checkbox, Pagination_panel,
-    Loader_small, Preset_description, Ext_tooltip} from '../common.js';
+import {Loader, Warnings, Loader_small, Preset_description,
+    Ext_tooltip} from '../common.js';
 import {Nav_tabs, Nav_tab} from '../common/nav_tabs.js';
 import React_tooltip from 'react-tooltip';
 import {tabs, all_fields} from './fields.js';
@@ -22,18 +21,20 @@ import Rotation from './rotation.js';
 import Speed from './speed.js';
 import Headers from './headers.js';
 import Logs from './logs.js';
+import Alloc_modal from './alloc_modal.js';
 import {map_rule_to_form} from './rules.js';
 import Tooltip from '../common/tooltip.js';
-import Zone_description from '../common/zone_desc.js';
 import {Modal} from '../common/modals.js';
 import {T} from '../common/i18n.js';
+import {Select_zone} from '../common/controls.js';
 
 const Index = withRouter(class Index extends Pure_component {
     constructor(props){
         super(props);
-        this.state = {form: {zones: {}}, warnings: [], errors: {},
-            show_loader: false, saving: false};
+        this.state = {form: {}, warnings: [], errors: {}, show_loader: false,
+            saving: false};
         this.debounced_save = _.debounce(this.save, 500);
+        this.debounced = [];
         setdb.set('head.proxy_edit.set_field', this.set_field);
         setdb.set('head.proxy_edit.is_valid_field', this.is_valid_field);
         setdb.set('head.proxy_edit.is_disabled_ext_proxy',
@@ -56,11 +57,13 @@ const Index = withRouter(class Index extends Pure_component {
             if (!proxy)
                 this.props.history.push('/overview');
             const form = Object.assign({}, proxy.config);
-            this.apply_preset(form, form.last_preset_applied||'session_long');
+            this.apply_preset(form, form.preset||'session_long');
             this.setState({proxies}, this.delayed_loader());
         });
-        this.setdb_on('head.consts', consts=>
-            this.setState({consts}, this.delayed_loader()));
+        this.setdb_on('head.zones', zones=>{
+            if (zones)
+                this.setState({zones}, this.delayed_loader());
+        });
         this.setdb_on('head.defaults', defaults=>
             this.setState({defaults}, this.delayed_loader()));
         this.setdb_on('head.callbacks', callbacks=>this.setState({callbacks}));
@@ -73,18 +76,23 @@ const Index = withRouter(class Index extends Pure_component {
     willUnmount(){
         setdb.set('head.proxy_edit.form', undefined);
         setdb.set('head.proxy_edit', undefined);
+        this.debounced.forEach(d=>d.cancel());
     }
     update_loader = ()=>{
         this.setState(state=>{
-            const show_loader = !state.consts || !state.proxies ||
-                !state.defaults;
+            const show_loader = !state.proxies || !state.defaults ||
+                !state.zones;
             const zone_name = !show_loader &&
-                (state.form.zone||state.consts.proxy.zone.def);
+                (state.form.zone || state.zones.def);
             setdb.set('head.proxy_edit.zone_name', zone_name);
             return {show_loader};
         });
     };
-    delayed_loader = ()=>_.debounce(this.update_loader);
+    delayed_loader = ()=>{
+        const fn = _.debounce(this.update_loader);
+        this.debounced.push(fn);
+        return fn;
+    };
     goto_field = field=>{
         let tab;
         for (let [tab_id, tab_o] of Object.entries(tabs))
@@ -116,34 +124,34 @@ const Index = withRouter(class Index extends Pure_component {
         this.debounced_save();
     };
     is_valid_field = field_name=>{
-        const proxy = this.state.consts.proxy;
+        const zones = this.state.zones;
         const form = this.state.form;
-        if (!proxy)
+        if (!zones)
             return false;
         if (form.ext_proxies && all_fields[field_name] &&
             !all_fields[field_name].ext)
         {
             return false;
         }
-        const zone = form.zone||proxy.zone.def;
         if (['city', 'state'].includes(field_name) &&
             (!form.country||form.country=='*'))
         {
             return false;
         }
-        const details = proxy.zone.values.filter(z=>z.value==zone)[0];
-        const permissions = details&&details.perm.split(' ')||[];
-        const plan = details&&details.plans[details.plans.length-1]||{};
-        if (field_name=='vip')
-            return !!plan.vip;
-        if (field_name=='country'&&plan.ip_alloc_preset=='shared_block')
-            return true;
-        if (field_name=='country'&&plan.type=='static')
+        const zone = zones.zones.find(z=>z.name==(form.zone||zones.def));
+        if (!zone || !zone.plan)
             return false;
+        const permissions = zone.perm.split(' ') || [];
+        if (field_name=='vip')
+            return !!zone.plan.vip;
+        if (field_name=='country' && zone.plan.ip_alloc_preset=='shared_block')
+            return true;
+        if (field_name=='country' && zone.plan.type=='static')
+            return zone.plan.country || zone.plan.ip_alloc_preset;
         if (['country', 'state', 'city', 'asn', 'ip'].includes(field_name))
             return permissions.includes(field_name);
-        if (field_name=='country'&&(plan.type=='static'||
-            ['domain', 'domain_p'].includes(plan.vips_type)))
+        if (field_name=='country' && (zone.plan.type=='static'||
+            ['domain', 'domain_p'].includes(zone.plan.vips_type)))
         {
             return false;
         }
@@ -152,9 +160,8 @@ const Index = withRouter(class Index extends Pure_component {
         return true;
     };
     is_disabled_ext_proxy = field_name=>{
-        const proxy = this.state.consts.proxy;
         const form = this.state.form;
-        if (proxy && form.ext_proxies && all_fields[field_name] &&
+        if (form.ext_proxies && all_fields[field_name] &&
             !all_fields[field_name].ext)
         {
             return true;
@@ -163,12 +170,10 @@ const Index = withRouter(class Index extends Pure_component {
     };
     apply_preset = (_form, preset)=>{
         const form = Object.assign({}, _form);
-        const last_preset = form.last_preset_applied ?
-            presets[form.last_preset_applied] : null;
+        const last_preset = form.preset ? presets[form.preset] : null;
         if (last_preset && last_preset.key!=preset && last_preset.clean)
             last_preset.clean(form);
         form.preset = preset;
-        form.last_preset_applied = preset;
         presets[preset].set(form);
         const disabled_fields = presets[preset].disabled||{};
         setdb.set('head.proxy_edit.disabled_fields', disabled_fields);
@@ -197,10 +202,6 @@ const Index = withRouter(class Index extends Pure_component {
             form.ips = [];
         if (!form.vips)
             form.vips = [];
-        if (Array.isArray(form.whitelist_ips))
-            form.whitelist_ips = form.whitelist_ips.join(',');
-        if (Array.isArray(form.smtp))
-            form.smtp = form.smtp.join(',');
         if (form.city && !Array.isArray(form.city) && form.state)
         {
             form.city = [{id: form.city,
@@ -283,8 +284,7 @@ const Index = withRouter(class Index extends Pure_component {
             if (_this.props.match.params.port!=_this.state.form.port)
             {
                 const port = _this.state.form.port;
-                const tab = _this.props.match.params.tab;
-                _this.props.history.push({pathname: `/proxy/${port}/${tab}`});
+                _this.props.history.push({pathname: `/proxy/${port}/general`});
             }
             if (_this.resave)
             {
@@ -307,15 +307,7 @@ const Index = withRouter(class Index extends Pure_component {
             if (!this.is_valid_field(field)||save_form[field]===null)
                 save_form[field] = '';
         }
-        const effective = attr=>{
-            return save_form[attr]===undefined ?
-                this.state.defaults[attr] : save_form[attr];
-        };
-        save_form.zone = save_form.zone||this.state.consts.proxy.zone.def;
-        save_form.ssl = effective('ssl');
-        save_form.max_requests = effective('max_requests');
-        save_form.session_duration = effective('session_duration');
-        save_form.pool_size = effective('pool_size');
+        save_form.zone = save_form.zone || this.state.zones.def;
         save_form.proxy_type = 'persist';
         if (save_form.reverse_lookup=='dns')
             save_form.reverse_lookup_dns = true;
@@ -331,29 +323,21 @@ const Index = withRouter(class Index extends Pure_component {
         else
             save_form.reverse_lookup_values = '';
         delete save_form.reverse_lookup;
-        if (save_form.whitelist_ips)
-        {
-            save_form.whitelist_ips = save_form.whitelist_ips.split(',')
-            .filter(Boolean);
-        }
-        else
-            save_form.whitelist_ips = [];
         // XXX krzysztof: extract the logic of mapping specific fields
         if (save_form.smtp)
-            save_form.smtp = save_form.smtp.split(',').filter(Boolean);
+            save_form.smtp = save_form.smtp.filter(Boolean);
         else
             save_form.smtp = [];
         if (save_form.city.length)
             save_form.city = save_form.city[0].id;
         else
             save_form.city = '';
-        if (save_form.asn.length)
+        if (save_form.asn.length==1)
             save_form.asn = Number(save_form.asn[0].id);
-        else
+        else if (!save_form.asn.length)
             save_form.asn = '';
         if (!save_form.max_requests)
             save_form.max_requests = 0;
-        delete save_form.preset;
         if (save_form.session_random)
             save_form.session = true;
         delete save_form.session_random;
@@ -362,34 +346,20 @@ const Index = withRouter(class Index extends Pure_component {
         return save_form;
     };
     get_curr_plan = ()=>{
-        const zone_name = this.state.form.zone||
-            this.state.consts.proxy.zone.def;
-        // XXX krzysztof: use /api/zones instead od consts
-        const zones = this.state.consts.proxy.zone.values;
-        const curr_zone = zones.filter(p=>p.key==zone_name);
-        let curr_plan;
-        if (curr_zone.length)
-            curr_plan = curr_zone[0].plans.slice(-1)[0];
-        return curr_plan;
+        const zone_name = this.state.form.zone || this.state.zones.def;
+        const zone = this.state.zones.zones.find(p=>p.name==zone_name) || {};
+        return zone.plan;
     };
     render(){
-        let zones = this.state.consts &&
-            this.state.consts.proxy.zone.values || [];
-        zones = zones.filter(z=>{
-            const plan = z.plans && z.plans.slice(-1)[0] || {};
-            return !plan.archive && !plan.disable;
-        });
-        let sett = setdb.get('head.settings')||{}, def;
-        if (zones[0] && !zones[0].value && (def = sett.zone||zones[0].key))
-            zones[0] = {key: `Default (${def})`, value: ''};
-        const default_zone=this.state.consts &&
-            this.state.consts.proxy.zone.def;
-        const curr_plan = this.state.consts && this.get_curr_plan();
+        // XXX krzysztof: cleanup type (index.js rotation.js general.js)
+        const curr_plan = this.state.zones && this.get_curr_plan();
         let type;
-        if (curr_plan && curr_plan.type=='static')
+        if (curr_plan && (curr_plan.type||'').startsWith('static'))
             type = 'ips';
         else if (curr_plan && !!curr_plan.vip)
             type = 'vips';
+        const zone = this.state.form.zone ||
+            this.state.zones && this.state.zones.def;
         return <T>{t=><div className="proxy_edit">
               <Loader show={this.state.show_loader||this.state.loading}/>
               <div className="nav_wrapper">
@@ -401,19 +371,17 @@ const Index = withRouter(class Index extends Pure_component {
                     std_tooltip=
                     {t('All changes are automatically saved to LPM')}/>
                 </div>
-                <Nav zones={zones} default_zone={default_zone}
-                  disabled={!!this.state.form.ext_proxies}
+                <Nav disabled={!!this.state.form.ext_proxies}
                   form={this.state.form}
                   on_change_preset={this.apply_preset}/>
                 <Nav_tabs_wrapper/>
               </div>
-              {this.state.consts && <Main_window/>}
+              {this.state.zones && <Main_window/>}
               <Modal className="warnings_modal" id="save_proxy_errors"
                 title={t('Error')} no_cancel_btn>
                 <Warnings warnings={this.state.error_list}/>
               </Modal>
-              <Alloc_modal type={type} form={this.state.form}
-                zone={this.state.form.zone||default_zone}/>
+              <Alloc_modal type={type} form={this.state.form} zone={zone}/>
             </div>}</T>;
     }
 });
@@ -500,19 +468,15 @@ class Nav extends Pure_component {
         this._reset_fields();
     };
     update_zone = val=>{
-        const zone_name = val||this.props.default_zone;
-        setdb.set('head.proxy_edit.zone_name', zone_name);
-        this.props.form.zone = zone_name;
-        const zone = this.props.zones.filter(z=>z.key==zone_name)[0]||{};
+        setdb.set('head.proxy_edit.zone_name', val);
         this.set_field('zone', val);
-        this.set_field('password', zone.password);
         if (this.props.form.ips.length || this.props.form.vips.length)
             this.set_field('pool_size', 0);
         this._reset_fields();
         const save_form = Object.assign({}, this.props.form);
         for (let field in save_form)
         {
-            if (!this.is_valid_field(field, zone_name))
+            if (!this.is_valid_field(field, val))
             {
                 let v = '';
                 if (field=='city'||field=='asn')
@@ -522,8 +486,6 @@ class Nav extends Pure_component {
         }
     };
     render(){
-        if (!this.state.zones)
-            return null;
         const presets_opt = Object.keys(presets).map(p=>{
             let key = presets[p].title;
             if (presets[p].default)
@@ -531,20 +493,21 @@ class Nav extends Pure_component {
             return {key, value: p};
         });
         const preset = this.props.form.preset;
+        const href = window.location.href;
+        const is_local = href.includes('localhost')||
+            href.includes('127.0.0.1');
         return <div className="nav">
-              <Field on_change={this.update_zone} options={this.props.zones}
-                value={this.props.form.zone} disabled={this.props.disabled}
-                id="zone">
-                <div className="zone_tooltip">
-                  <Zone_description zones={this.state.zones}
-                    zone_name={this.props.form.zone}/>
-                </div>
-              </Field>
+              <Select_zone val={this.props.form.zone}
+                on_change_wrapper={this.update_zone}
+                disabled={this.props.disabled} preview/>
               <Field i18n on_change={this.update_preset} options={presets_opt}
-                value={preset} disabled={this.props.disabled} id="preset">
-                <Preset_description preset={preset} rule_clicked={()=>0}/>
-              </Field>
-              <Open_browser_btn port={this.props.form.port}/>
+                value={preset} disabled={this.props.disabled} id="preset"
+                tooltip={
+                  <Preset_description preset={preset} rule_clicked={()=>0}/>
+                }/>
+              {is_local &&
+                <Open_browser_btn port={this.props.form.port}/>
+              }
             </div>;
     }
 }
@@ -553,8 +516,8 @@ const Field = ({id, disabled, children, i18n, ...props})=>{
     const options = props.options||[];
     return <T>{t=><div className="field" data-tip data-for={id+'tip'}>
           <React_tooltip id={id+'tip'} type="light" effect="solid"
-            place="bottom" delayHide={300} delayUpdate={300}>
-            {disabled ? <Ext_tooltip/> : children}
+            place="bottom" delayHide={0} delayUpdate={300}>
+            {disabled ? <Ext_tooltip/> : props.tooltip}
           </React_tooltip>
           <select value={props.value} disabled={disabled}
             onChange={e=>props.on_change(e.target.value)}>
@@ -566,216 +529,5 @@ const Field = ({id, disabled, children, i18n, ...props})=>{
           </select>
         </div>}</T>;
 };
-
-class Alloc_modal extends Pure_component {
-    set_field = setdb.get('head.proxy_edit.set_field');
-    state = {
-        available_list: [],
-        displayed_list: [],
-        cur_page: 0,
-        items_per_page: 20,
-    };
-    componentDidMount(){
-        this.setdb_on('head.proxy_edit.zone_name', zone_name=>
-            this.setState({available_list: []}));
-        this.setdb_on('head.proxies_running', proxies=>
-            proxies&&this.setState({proxies}));
-        $('#allocated_ips').on('show.bs.modal', this.load);
-    }
-    close = ()=>$('#allocated_ips').modal('hide');
-    load = ()=>{
-        if (this.state.available_list.length)
-            return;
-        this.loading(true);
-        const key = this.props.form.password||'';
-        let endpoint;
-        if (this.props.type=='ips')
-            endpoint = '/api/allocated_ips';
-        else
-            endpoint = '/api/allocated_vips';
-        const url = `${endpoint}?zone=${this.props.zone}&key=${key}`;
-        const _this = this;
-        this.etask(function*(){
-            this.on('uncaught', e=>{
-                // XXX krzysztof: use perr
-                console.log(e);
-                _this.loading(false);
-            });
-            const res = yield ajax.json({url});
-            let available_list;
-            if (_this.props.type=='ips')
-                available_list = res.ips;
-            else
-                available_list = res;
-            _this.setState({available_list, cur_page: 0},
-                _this.sync_selected_vals);
-            _this.loading(false);
-        });
-    };
-    sync_selected_vals = ()=>{
-        const curr_vals = this.props.form[this.props.type];
-        const new_vals = curr_vals.filter(v=>
-            this.state.available_list.includes(v));
-        this.set_field(this.props.type, new_vals);
-        this.update_multiply_and_pool_size(new_vals.length);
-        this.paginate();
-    };
-    paginate = (page=-1)=>{
-        page = page>-1 ? page : this.state.cur_page;
-        const pages = Math.ceil(
-            this.state.available_list.length/this.state.items_per_page);
-        const cur_page = Math.min(pages, page);
-        const displayed_list = this.state.available_list.slice(
-            cur_page*this.state.items_per_page,
-            (cur_page+1)*this.state.items_per_page);
-        this.setState({displayed_list, cur_page});
-    };
-    loading = loading=>{
-        setdb.set('head.proxy_edit.loading', loading);
-        this.setState({loading});
-    };
-    checked = row=>(this.props.form[this.props.type]||[]).includes(row);
-    reset = ()=>{
-        this.set_field(this.props.type, []);
-        this.set_field('pool_size', '');
-        this.set_field('multiply', 1);
-    };
-    toggle = e=>{
-        let {value, checked} = e.target;
-        const {type, form} = this.props;
-        if (type=='vips')
-            value = Number(value);
-        let new_alloc;
-        if (checked)
-            new_alloc = [...form[type], value];
-        else
-            new_alloc = form[type].filter(r=>r!=value);
-        this.set_field(type, new_alloc);
-        this.update_multiply_and_pool_size(new_alloc.length);
-    };
-    select_all = ()=>{
-        this.set_field(this.props.type, this.state.available_list);
-        this.update_multiply_and_pool_size(this.state.available_list.length);
-    };
-    refresh = ()=>{
-        const _this = this;
-        this.etask(function*(){
-            this.on('uncaught', e=>{
-                // XXX krzysztof: use perr
-                console.log(e);
-            });
-            this.on('finally', ()=>{
-                _this.loading(false);
-            });
-            _this.loading(true);
-            const data = {zone: _this.props.zone};
-            let url;
-            if (_this.props.type=='ips')
-            {
-                data.ips = _this.props.form.ips.map(zurl.ip2num).join(' ');
-                url = '/api/refresh_ips';
-            }
-            else
-            {
-                data.vips = _this.props.form.vips;
-                url = '/api/refresh_vips';
-            }
-            const res = yield ajax.json({method: 'POST', url, data});
-            if (res.error || !res.ips && !res.vips)
-            {
-                // XXX krzysztof: use perr
-                console.log(`error: ${res.error}`);
-                return;
-            }
-            const new_vals = _this.props.type=='ips' ?
-                res.ips.map(i=>i.ip) : res.vips.map(v=>v.vip);
-            const map = _this.map_vals(_this.state.available_list, new_vals);
-            const new_ips = _this.props.form.ips.map(val=>map[val]);
-            const new_vips = _this.props.form.vips.map(val=>map[val]);
-            _this.setState({available_list: new_vals}, _this.paginate);
-            _this.set_field('ips', new_ips);
-            _this.set_field('vips', new_vips);
-            yield _this.update_other_proxies(map);
-        });
-    };
-    update_other_proxies = map=>{
-        const _this = this;
-        return this.etask(function*(){
-            const proxies_to_update = _this.state.proxies.filter(p=>
-                p.zone==_this.props.zone&&p.port!=_this.props.form.port&&
-                p.proxy_type=='persist');
-            for (let i=0; i<proxies_to_update.length; i++)
-            {
-                const proxy = proxies_to_update[i];
-                const new_vals = proxy[_this.props.type].map(v=>map[v]);
-                const data = {port: proxy.port, [_this.props.type]: new_vals};
-                yield ajax({method: 'POST', url: '/api/update_ips', data});
-            }
-        });
-    };
-    map_vals = (old_vals, new_vals)=>{
-        if (old_vals.length!=new_vals.length)
-        {
-            // XXX krzysztof: use perr
-            console.log('error ips/vips length mismatch');
-            return;
-        }
-        const map = {};
-        for (let i=0; i<old_vals.length; i++)
-            map[old_vals[i]] = new_vals[i];
-        return map;
-    };
-    update_multiply_and_pool_size = size=>{
-        if (!this.props.form.multiply_ips && !this.props.form.multiply_vips)
-            this.set_field('pool_size', size);
-        else
-        {
-            this.set_field('pool_size', 1);
-            this.set_field('multiply', size);
-        }
-    };
-    update_items_per_page = items_per_page=>
-        this.setState({items_per_page}, ()=>this.paginate(0));
-    page_change = page=>this.paginate(page-1);
-    render(){
-        const type_label = this.props.type=='ips' ? 'IPs' : 'gIPs';
-        const title = 'Select the '+type_label+' ('+this.props.zone+')';
-        const Footer = <div className="default_footer">
-              <button onClick={this.refresh} className="btn btn_lpm">
-                Refresh</button>
-              <button onClick={this.close}
-                className="btn btn_lpm btn_lpm_primary">OK</button>
-            </div>;
-        return <Modal id="allocated_ips" className="allocated_ips_modal"
-              title={title} footer={Footer}>
-              <Pagination_panel
-                entries={this.state.available_list}
-                items_per_page={this.state.items_per_page}
-                cur_page={this.state.cur_page}
-                page_change={this.page_change} top
-                update_items_per_page={this.update_items_per_page}>
-                <Link_icon tooltip="Unselect all" on_click={this.reset}
-                  id="unchecked"/>
-                <Link_icon tooltip="Select all" on_click={this.select_all}
-                  id="check"/>
-              </Pagination_panel>
-              {this.state.displayed_list.map(row=>
-                <Checkbox on_change={this.toggle} key={row}
-                  text={row} value={row} checked={this.checked(row)}/>
-              )}
-              <Pagination_panel
-                entries={this.state.available_list}
-                items_per_page={this.state.items_per_page}
-                cur_page={this.state.cur_page}
-                page_change={this.page_change} bottom
-                update_items_per_page={this.update_items_per_page}>
-                <Link_icon tooltip="Unselect all"
-                  on_click={this.reset} id="unchecked"/>
-                <Link_icon tooltip="Select all"
-                  on_click={this.select_all.bind(this)} id="check"/>
-              </Pagination_panel>
-            </Modal>;
-    }
-}
 
 export default Index;

@@ -5,14 +5,15 @@ import React from 'react';
 import {Loader} from './common.js';
 import Pure_component from '/www/util/pub/pure_component.js';
 import $ from 'jquery';
-import {detect_browser} from './util.js';
 import {Modal} from './common/modals.js';
 
 class Index extends Pure_component {
+    success_msg = `Your issue is being handled! We will be in touch as soon as
+        possible.`;
     state = {desc: '', email: '', sending: false};
     componentDidMount(){
         this.setdb_on('head.consts', consts=>{
-            if (consts&&consts.logins&&consts.logins.length==1)
+            if (consts && consts.logins && consts.logins.length==1)
                 this.setState({email: consts.logins[0]});
         });
     }
@@ -25,15 +26,21 @@ class Index extends Pure_component {
         return etask(function*(){
             this.on('uncaught', ()=>{ _this.setState({sending: false}); });
             _this.setState({sending: true});
-            // XXX krzysztof: switch fetch->ajax
-            yield window.fetch('/api/report_bug', {
+            const resp = yield window.fetch('/api/report_bug', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({desc, email: _this.state.email,
-                    browser: detect_browser()}),
+                body: JSON.stringify({desc, email: _this.state.email}),
             });
             _this.setState({sending: false});
-            window.setTimeout(()=>$('#thanks_modal').modal(), 500);
+            if (resp.status==200)
+                _this.setState({modal_msg: _this.success_msg});
+            else
+            {
+                const resp_json = yield resp.json();
+                const modal_msg = `Something went wrong: [${resp_json}]`;
+                _this.setState({modal_msg});
+            }
+            window.setTimeout(()=>$('#finish_modal').modal(), 500);
         });
     };
     render(){
@@ -54,15 +61,14 @@ class Index extends Pure_component {
                     onChange={this.email_changed}/>
                 </div>
               </Modal>
-              <Thanks_modal/>
+              <Finish_modal msg={this.state.modal_msg}/>
             </div>;
     }
 }
 
-const Thanks_modal = ()=>
-    <Modal title="Report has been sent" id="thanks_modal" no_cancel_btn>
-      <h4>You issue in being handled! We will be in touch as soon
-        as possible.</h4>
+const Finish_modal = props=>
+    <Modal title="Your report has been sent" id="finish_modal" no_cancel_btn>
+      <h4>{props.msg}</h4>
     </Modal>;
 
 export default Index;

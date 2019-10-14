@@ -6,7 +6,7 @@ import $ from 'jquery';
 import _ from 'lodash';
 import moment from 'moment';
 import classnames from 'classnames';
-import {withRouter} from 'react-router-dom';
+import {Route, withRouter, Link} from 'react-router-dom';
 import React_tooltip from 'react-tooltip';
 import setdb from '../../util/setdb.js';
 import ajax from '../../util/ajax.js';
@@ -46,6 +46,10 @@ class Har_viewer extends Pure_component {
         this.setdb_on('head.proxies_running', proxies=>{
             if (proxies)
                 this.setState({proxies});
+        });
+        this.setdb_on('head.settings', settings=>{
+            if (settings)
+                this.setState({logs: settings.logs});
         });
         this.etask(function*(){
             const suggestions = yield ajax.json(
@@ -121,41 +125,49 @@ class Har_viewer extends Pure_component {
             return null;
         const width = `calc(100% - ${this.state.tables_width}px`;
         const preview_style = {maxWidth: width, minWidth: width};
-        return <div id="har_viewer" className="har_viewer chrome">
-              <div className="main_panel vbox" ref={this.set_main_panel_ref}>
-                <Toolbar
-                  undock={this.undock}
-                  dock_mode={this.props.dock_mode}
-                  master_port={this.props.master_port}
-                  filters={this.state.filters}
-                  set_filter={this.set_filter}
-                  proxies={this.state.proxies}
-                  type_filter={this.state.type_filter}
-                  set_type_filter={this.set_type_filter}
-                  clear={this.clear}
-                  on_change_search={this.on_change_search}
-                  search_val={this.state.search}/>
-                <div className="split_widget vbox flex_auto">
-                  <Tables_container
-                    key={''+this.props.master_port}
+        const show = this.state.logs>0;
+        return <div id="har_viewer" className={(show ? 'har_viewer' :
+            'har_viewer_off')+' chrome'}>
+              {!show &&
+                <Route path="/logs" component={Logs_off_notice}/>
+              }
+              {show &&
+                <div className="main_panel vbox" ref={this.set_main_panel_ref}>
+                  <Toolbar
+                    undock={this.undock}
+                    dock_mode={this.props.dock_mode}
                     master_port={this.props.master_port}
-                    main_panel_moving={this.main_panel_moving}
-                    main_panel_stopped_moving={this.main_panel_stopped_moving}
-                    main_panel={this.main_panel}
-                    open_preview={this.open_preview}
-                    width={this.state.tables_width}
-                    search={this.state.search}
-                    type_filter={this.state.type_filter}
                     filters={this.state.filters}
-                    cur_preview={this.state.cur_preview}/>
-                  <Preview cur_preview={this.state.cur_preview}
-                    style={preview_style}
-                    close={this.close_preview}/>
-                  <Tables_resizer show={!!this.state.cur_preview}
-                    start_moving={this.start_moving_width}
-                    offset={this.state.tables_width}/>
+                    set_filter={this.set_filter}
+                    proxies={this.state.proxies}
+                    type_filter={this.state.type_filter}
+                    set_type_filter={this.set_type_filter}
+                    clear={this.clear}
+                    on_change_search={this.on_change_search}
+                    search_val={this.state.search}/>
+                  <div className="split_widget vbox flex_auto">
+                    <Tables_container
+                      key={''+this.props.master_port}
+                      master_port={this.props.master_port}
+                      main_panel_moving={this.main_panel_moving}
+                      main_panel_stopped_moving=
+                        {this.main_panel_stopped_moving}
+                      main_panel={this.main_panel}
+                      open_preview={this.open_preview}
+                      width={this.state.tables_width}
+                      search={this.state.search}
+                      type_filter={this.state.type_filter}
+                      filters={this.state.filters}
+                      cur_preview={this.state.cur_preview}/>
+                    <Preview cur_preview={this.state.cur_preview}
+                      style={preview_style}
+                      close={this.close_preview}/>
+                    <Tables_resizer show={!!this.state.cur_preview}
+                      start_moving={this.start_moving_width}
+                      offset={this.state.tables_width}/>
+                  </div>
                 </div>
-              </div>
+              }
             </div>;
     }
 }
@@ -337,6 +349,15 @@ const Tables_resizer = ({show, offset, start_moving})=>{
     return <div className="data_grid_resizer" style={{left: offset-2}}
       onMouseDown={start_moving}/>;
 };
+
+const Logs_off_notice = ()=>
+    <div>
+      <h4>
+        Request logs are disabled. You can enable it back in
+        &nbsp;
+        <Link to="/settings">General settings</Link>
+      </h4>
+    </div>;
 
 const table_cols = [
     {title: 'select', hidden: true, fixed: 27, tooltip: 'Select/unselect all'},
@@ -661,8 +682,8 @@ class Summary_bar extends Pure_component {
             {total: 0, sum_in: 0, sum_out: 0};
         sum_out = bytes_format(sum_out)||'0 B';
         sum_in = bytes_format(sum_in)||'0 B';
-        const txt = t=>(`${total} ${t('requests')} | ${sum_out} ${t('sent')} `
-            +`| ${sum_in} ${t('received')}`);
+        const txt = t=>`${total} ${t('requests')} | ${sum_out} ${t('sent')} `
+            +`| ${sum_in} ${t('received')}`;
         return <div className="summary_bar">
               <span>
                 <T>{t=><Tooltip title={txt(t)}>{txt(t)}</Tooltip>}</T>
@@ -726,7 +747,9 @@ class Header_container extends Pure_component {
                           <th key={c.title} onClick={()=>this.click(c)}>
                             <div>
                               {c.title=='select' &&
-                                <Checkbox checked={this.state.checked_all}/>}
+                                <Checkbox checked={this.state.checked_all}
+                                  // no-op to remove React warning
+                                  on_change={()=>null}/>}
                               {c.title!='select' && t(c.title)}
                             </div>
                             <Sort_icon show={c.sort_by==sorted.field}
@@ -904,8 +927,9 @@ class Name_cell extends Pure_component {
         const rule_tip = 'At least one rule has been applied to this'
         +' request. Click to see more details';
         const status_check = req.details.context=='STATUS CHECK';
-        const bad = (rules||[])
-            .some(r=>Object.keys(r.action||{}).includes('ban_ip'));
+        const is_ban = r=>Object.keys(r.action||{})
+            .some(a=>a.startsWith('ban_ip'));
+        const bad = (rules||[]).some(is_ban);
         const icon_classes = classnames('small_icon', 'rules', {
             good: !bad, bad});
         return <div className="col_name">
@@ -971,12 +995,12 @@ const Status_code_cell = maybe_pending(({status, uuid, req})=>{
 });
 
 const Time_cell = maybe_pending(({time, url, uuid})=>{
+    if (!url.endsWith(':443')||!time)
+        return <Tooltip_and_value val={time&&time+' ms'}/>;
     const enable_ssl_click = e=>{
         e.stopPropagation();
         $('#enable_ssl_modal').modal();
     };
-    if (!url.endsWith(':443')||!time)
-        return <Tooltip_and_value val={time&&time+' ms'}/>;
     return <div onClick={e=>e.stopPropagation()} className="disp_value">
           <React_tooltip id={'t'+uuid} type="info" effect="solid"
             delayHide={100} delayShow={0} delayUpdate={500}
@@ -995,8 +1019,7 @@ const Time_cell = maybe_pending(({time, url, uuid})=>{
             </div>
           </React_tooltip>
           <div data-tip="React-tooltip" data-for={'t'+uuid}>
-             {time+' ms'}
-             {url.endsWith(':443')&&<div className="small_icon status info"/>}
+            — {url.endsWith(':443')&&<div className="small_icon status info"/>}
           </div>
         </div>;
 });

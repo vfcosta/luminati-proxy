@@ -2,11 +2,12 @@
 'use strict'; /*jslint react:true, es6:true*/
 import Pure_component from '/www/util/pub/pure_component.js';
 import React from 'react';
-import {Labeled_controller, Nav, Loader, Loader_small} from './common.js';
+import {Labeled_controller, Nav, Loader_small} from './common.js';
 import setdb from '../../util/setdb.js';
 import ajax from '../../util/ajax.js';
 import {ga_event} from './util.js';
 import _ from 'lodash';
+import {Select_zone, Pins} from './common/controls.js';
 
 export default function Settings(){
     return <div className="settings">
@@ -32,9 +33,19 @@ const tooltips = {
     request_stats: `Enable saving statistics to database`,
     logs: `Specify how many requests you want to keep in database. The
         limit may be set as a number or maximum database size.`,
+    log: `Decide how elaborate is the debugging information
+        that you see in the console's log`,
 };
 for (let f in tooltips)
     tooltips[f] = tooltips[f].replace(/\s+/g, ' ').replace(/\n/g, ' ');
+
+const log_level_opt = [
+    {key: `Default (notice)`, value: ''},
+    {key: `error`, value: 'error'},
+    {key: `warn`, value: 'warn'},
+    {key: `notice`, value: 'notice'},
+    {key: `info`, value: 'info'},
+];
 
 class Form extends Pure_component {
     state = {saving: false};
@@ -46,16 +57,15 @@ class Form extends Pure_component {
         this.setdb_on('head.settings', settings=>{
             if (!settings||this.state.settings)
                 return;
-            const s = {...settings};
-            s.www_whitelist_ips = s.www_whitelist_ips &&
-                s.www_whitelist_ips.join(',')||'';
-            s.whitelist_ips = s.whitelist_ips &&
-                s.whitelist_ips.join(',')||'';
-            this.setState({settings: s});
+            this.setState({settings: {...settings}});
         });
-        this.setdb_on('head.consts', consts=>{
-            if (consts)
-                this.setState({consts});
+        this.setdb_on('head.save_settings', save_settings=>{
+            this.save_settings = save_settings;
+            if (save_settings && this.resave)
+            {
+                delete this.resave;
+                this.save();
+            }
         });
     }
     zone_change = val=>{
@@ -66,7 +76,11 @@ class Form extends Pure_component {
     whitelist_ips_change = val=>{
         ga_event('settings', 'change_field', 'whitelist_ips');
         this.setState(
-            prev=>({settings: {...prev.settings, whitelist_ips: val}}),
+            ({settings})=>{
+                const whitelist_ips = val.filter(
+                    ip=>!settings.cmd_whitelist_ips.includes(ip));
+                return {settings: {...settings, whitelist_ips}};
+            },
             this.debounced_save);
     };
     www_whitelist_ips_change = val=>{
@@ -79,6 +93,10 @@ class Form extends Pure_component {
         this.setState(prev=>({settings: {...prev.settings, logs: +val}}),
             this.debounced_save);
     };
+    log_changed = val=>{
+        this.setState(prev=>({settings: {...prev.settings, log: val}}),
+            this.debounced_save);
+    };
     request_stats_changed = val=>{
         ga_event('settings', 'change_field', 'request_stats');
         this.setState(
@@ -87,7 +105,7 @@ class Form extends Pure_component {
     };
     lock_nav = lock=>setdb.set('head.lock_navigation', lock);
     save = ()=>{
-        if (this.saving)
+        if (this.saving || !this.save_settings)
         {
             this.resave = true;
             return;
@@ -109,50 +127,45 @@ class Form extends Pure_component {
                 ga_event('settings', 'save', 'successful');
                 if (_this.resave)
                 {
-                    _this.resave = false;
+                    delete _this.resave;
                     _this.save();
                 }
             });
             const body = {..._this.state.settings};
-            const raw = yield window.fetch('/api/settings', {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(body),
-            });
-            const settings = yield raw.json();
-            setdb.set('head.settings', settings);
+            yield _this.save_settings(body);
             const zones = yield ajax.json({url: '/api/zones'});
             setdb.set('head.zones', zones);
         });
     };
     debounced_save = _.debounce(this.save, 500);
     render(){
-        if (!this.state.settings)
+        const s = this.state.settings;
+        if (!s)
             return null;
-        // XXX krzysztof: clean up zones logic
-        const zone_opt = this.state.consts && this.state.consts.proxy.zone
-        .values.filter(z=>{
-            const plan = z.plans && z.plans.slice(-1)[0] || {};
-            return !plan.archive && !plan.disable;
-        }).map(z=>z.value).filter(Boolean).map(z=>({key: z, value: z}));
+        const wl = s.cmd_whitelist_ips.concat(s.whitelist_ips);
         return <div className="settings_form">
-              <Loader show={!this.state.consts}/>
-              <Labeled_controller val={this.state.settings.zone} type="select"
-                on_change_wrapper={this.zone_change} label="Default zone"
-                tooltip={tooltips.zone} data={zone_opt}/>
-              <Labeled_controller val={this.state.settings.www_whitelist_ips}
-                type="pins" label="Admin whitelisted IPs"
-                on_change_wrapper={this.www_whitelist_ips_change}
-                tooltip={tooltips.www_whitelist_ips}/>
-              <Labeled_controller val={this.state.settings.whitelist_ips}
+              <Labeled_controller label="Default zone" tooltip={tooltips.zone}>
+                <Select_zone val={s.zone} preview
+                  on_change_wrapper={this.zone_change}/>
+              </Labeled_controller>
+              <Labeled_controller label="Admin whitelisted IPs"
+                tooltip={tooltips.www_whitelist_ips}>
+                <Pins val={s.www_whitelist_ips} pending={s.pending_www_ips}
+                  on_change_wrapper={this.www_whitelist_ips_change}/>
+              </Labeled_controller>
+              <Labeled_controller val={wl} disabled={s.cmd_whitelist_ips}
                 type="pins" label="Proxy whitelisted IPs"
                 on_change_wrapper={this.whitelist_ips_change}
                 tooltip={tooltips.whitelist_ips}/>
-              <Labeled_controller val={this.state.settings.request_stats}
+              {false && <Labeled_controller val={s.log}
+                type="select" data={log_level_opt}
+                label="Log level" on_change_wrapper={this.log_changed}
+                tooltip={tooltips.log}/>}
+              <Labeled_controller val={s.request_stats}
                 type="yes_no" on_change_wrapper={this.request_stats_changed}
                 label="Enable recent stats" default
                 tooltip={tooltips.request_stats}/>
-              <Labeled_controller val={this.state.settings.logs}
+              <Labeled_controller val={s.logs}
                 type="select_number" on_change_wrapper={this.logs_changed}
                 data={[0, 100, 1000, 10000]}
                 label="Limit for request logs" default

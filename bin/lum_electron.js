@@ -3,7 +3,8 @@
 'use strict'; /*jslint node:true, esnext:true*/
 const electron = require('electron');
 const child_process = require('child_process');
-const app = electron.app, dialog = electron.dialog;
+const app = electron.app;
+const dialog = electron.dialog;
 const opn = require('opn');
 let _info_bkp = console.info;
 console.info = function(){};
@@ -14,6 +15,8 @@ const zerr = require('../util/zerr.js');
 const Manager = require('../lib/manager.js');
 const tasklist = require('tasklist');
 const taskkill = require('taskkill');
+const pkg = require('../package.json');
+const logger = require('../lib/logger.js');
 const E = module.exports;
 
 let manager, upgrade_available, can_upgrade;
@@ -23,12 +26,6 @@ const show_message = opt=>etask(function*(){
         [opt]);
     return res;
 });
-const mgr_err = msg=>{
-    if (manager&&manager._log)
-        manager._log.error(msg);
-    else
-        console.log(msg);
-};
 
 // XXX vladislavl: need refactor restart themself - electron does not support
 // fork child other path js process run
@@ -126,12 +123,14 @@ const check_conflicts = ()=>etask(function*(){
     restart();
 });
 
-const _run = (argv, run_config)=>etask(function*(){
+const _run = argv=>etask(function*(){
+    logger.notice('Running Luminati Proxy Manager v%s, PID: %s', pkg.version,
+        process.pid);
     yield check_conflicts();
     if (process.send)
         process.send({cmd: 'lpm_restart_init'});
-    manager = new Manager(argv, run_config);
-    auto_updater.logger = manager._log;
+    manager = new Manager(argv);
+    auto_updater.logger = manager.log;
     setTimeout(()=>auto_updater.checkForUpdates(), 15000);
     manager.on('www_ready', url=>{
         opn(url);
@@ -151,18 +150,19 @@ const _run = (argv, run_config)=>etask(function*(){
         let handle_fatal = ()=>{
             if (fatal)
             {
-                mgr_err(e_msg);
+                logger.error(e_msg);
                 process.exit();
             }
         };
         handle_fatal();
     })
     .on('config_changed', etask.fn(function*(zone_autoupdate){
+        // XXX krzysztof: probably zone_autoupdate is not used anymore-cleanup
         yield manager.stop('config change', true, true);
         setTimeout(()=>_run(argv, zone_autoupdate && zone_autoupdate.prev ? {
             warnings: [`Your default zone has been automatically changed from `
                 +`'${zone_autoupdate.prev}' to '${zone_autoupdate.zone}'.`],
-        } : {}), 0);
+        } : {}));
     }));
     manager.start();
 });
@@ -172,7 +172,7 @@ let quit = err=>{
     {
         if (!manager)
             zerr.perr(err);
-        mgr_err('uncaught exception '+zerr.e2s(err));
+        logger.error('uncaught exception '+zerr.e2s(err));
     }
     app.quit();
 };

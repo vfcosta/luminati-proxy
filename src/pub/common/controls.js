@@ -3,32 +3,48 @@
 import React from 'react';
 import Pure_component from '/www/util/pub/pure_component.js';
 import React_select from 'react-select/lib/Creatable';
+import React_tooltip from 'react-tooltip';
+import {withRouter} from 'react-router-dom';
 import classnames from 'classnames';
 import {Netmask} from 'netmask';
 import {Typeahead} from 'react-bootstrap-typeahead';
 import codemirror from 'codemirror/lib/codemirror';
 import 'codemirror/mode/javascript/javascript';
 import 'codemirror/lib/codemirror.css';
+import setdb from '../../../util/setdb.js';
+import ajax from '../../../util/ajax.js';
+import zurl from '../../../util/url.js';
 import Tooltip from './tooltip.js';
 import {T} from './i18n.js';
+import {Ext_tooltip, Loader} from '../common.js';
+import Zone_description from './zone_desc.js';
+import {Modal_dialog} from './modals.js';
 
 export class Pins extends Pure_component {
-    state = {pins: [], max_id: 0};
+    state = {pins: [], max_id: 0, modal_open: false,
+        pending: this.props.pending||[]};
     static getDerivedStateFromProps(props, state){
         if (props.val==state.raw_val||!props.val)
             return null;
-        const ips = props.val.split(',');
+        const ips = props.val||[];
+        const disabled_ips = props.disabled||[];
         return {
             raw_val: props.val,
-            pins: ips.map((p, id)=>({id, val: p, edit: false})),
+            pins: ips.map((p, id)=>({id, val: p, edit: false,
+                disabled: !!disabled_ips.find(i=>i==p)})),
             max_id: ips.length,
         };
     }
-    add_pin = ()=>{
+    add_pin = (pin='')=>{
         this.setState(prev=>({
-            pins: [...prev.pins, {id: prev.max_id+1, val: '', edit: true}],
+            pins: [...prev.pins, {id: prev.max_id+1, val: pin, edit: true}],
             max_id: prev.max_id+1,
         }));
+        if (pin && this.state.pending.includes(pin))
+            this.setState({pending: this.props.pending.filter(p=>p!=pin)});
+    };
+    add_empty_pin = ()=>{
+        this.add_pin();
     };
     remove = id=>{
         this.setState(prev=>({
@@ -54,10 +70,12 @@ export class Pins extends Pure_component {
         }));
     };
     fire_on_change = ()=>{
-        const val = this.state.pins.map(p=>p.val).join(',');
+        const val = this.state.pins.map(p=>p.val);
         this.props.on_change_wrapper(val);
     };
     save_pin = (id, val)=>{
+        if (this.state.pins.find(p=>p.id!=id && p.val==val))
+            return this.remove(id);
         this.setState(prev=>({
             pins: prev.pins.map(p=>{
                 if (p.id!=id)
@@ -66,22 +84,47 @@ export class Pins extends Pure_component {
             }),
         }), this.fire_on_change);
     };
+    dismiss_modal = ()=>this.setState({modal_open: false});
+    open_modal = ()=>this.setState({modal_open: true});
     render(){
+        const pending = this.state.pending;
+        const pending_btn_title = `Add recent IPs (${pending.length})`;
         return <div className="pins_field">
               <div className="pins">
                 {this.state.pins.map(p=>
                   <Pin key={p.id} update_pin={this.update_pin} id={p.id}
                     set_edit={this.set_edit} edit={p.edit}
                     exact={this.props.exact} save_pin={this.save_pin}
-                    remove={this.remove}>
+                    remove={this.remove} disabled={p.disabled}>
                     {p.val}
                   </Pin>
                 )}
               </div>
-              <Add_pin add_pin={this.add_pin}/>
+              <Pin_btn title="Add IP" tooltip="Add new IP to the list"
+                on_click={this.add_empty_pin}/>
+              {!!pending.length &&
+                <Pin_btn on_click={this.open_modal} title={pending_btn_title}/>
+              }
+              <Modal_dialog title="Add recent IPs"
+                open={this.state.modal_open}
+                ok_clicked={this.dismiss_modal} no_cancel_btn>
+                {pending.map(ip=>
+                  <Add_pending_btn key={ip} ip={ip}
+                    add_pin={this.add_pin}/>
+                )}
+                {!pending.length &&
+                  <span>No more pending IPs to whitelist</span>
+                }
+              </Modal_dialog>
             </div>;
     }
 }
+
+const Add_pending_btn = ({ip, add_pin})=>
+    <div>
+      <span style={{marginRight: 10}}>{ip}</span>
+      <Pin_btn title="Add IP" on_click={()=>add_pin(ip)}/>
+    </div>;
 
 class Pin extends Pure_component {
     input = React.createRef();
@@ -93,7 +136,8 @@ class Pin extends Pure_component {
             this.input.current.focus();
     }
     edit = ()=>{
-        this.props.set_edit(this.props.id, true);
+        if (!this.props.disabled)
+            this.props.set_edit(this.props.id, true);
     };
     key_up = e=>{
         if (e.keyCode==13)
@@ -101,7 +145,7 @@ class Pin extends Pure_component {
     };
     validate_and_save = ()=>{
         let val = (this.props.children||'').trim();
-        if (this.props.exact)
+        if (this.props.exact && val)
             return this.props.save_pin(this.props.id, val);
         try {
             const netmask = new Netmask(val);
@@ -117,19 +161,20 @@ class Pin extends Pure_component {
     remove = ()=>this.props.remove(this.props.id);
     on_blur = ()=>this.validate_and_save();
     render(){
-        const {children} = this.props;
-        const input_classes = classnames({hidden: !this.props.edit});
-        return <div className={classnames('pin', {active: this.props.edit})}>
-              <div className="x" onClick={this.remove}>
+        const {children, edit, disabled} = this.props;
+        const input_classes = classnames({hidden: !edit});
+        return <div className={classnames('pin', {active: edit, disabled})}>
+              {!disabled &&
+                <div className="x" onClick={this.remove}>
                 <div className="glyphicon glyphicon-remove"/>
-              </div>
+              </div>}
               <div className="content" onClick={this.edit}>
-                {!this.props.edit && children}
+                {!edit && children}
                 <input ref={this.input} type="text" value={children}
                   onChange={this.on_change} onBlur={this.on_blur}
                   className={input_classes} onKeyUp={this.key_up}/>
               </div>
-              {this.props.edit &&
+              {edit &&
                 <div className="v">
                   <div className="glyphicon glyphicon-ok"/>
                 </div>
@@ -138,11 +183,11 @@ class Pin extends Pure_component {
     }
 }
 
-const Add_pin = ({add_pin})=>
-    <Tooltip title="Add new IP to the list">
+export const Pin_btn = ({on_click, title, tooltip, icon})=>
+    <Tooltip title={tooltip}>
       <button className="btn btn_lpm btn_lpm_small add_pin"
-        onClick={add_pin}>
-        <T>Add IP</T>
+        onClick={on_click}>
+        {title}
         <i className="glyphicon glyphicon-plus"/>
       </button>
     </Tooltip>;
@@ -321,8 +366,9 @@ export class Regex extends Pure_component {
                     {this.formats.map(f=>
                       <Tooltip key={f+!!this.state.checked[f]}
                         title={this.tip(f)}>
-                        <div onClick={this.toggle.bind(null, f)}
-                          className={this.classes(f)}>.{f}</div>
+                        <button onClick={this.toggle.bind(null, f)}
+                          className={this.classes(f)}
+                          disabled={this.props.disabled}>.{f}</button>
                       </Tooltip>
                     )}
                   </div>
@@ -355,9 +401,32 @@ export class Json extends Pure_component {
     render(){
         const classes = classnames('code_mirror_wrapper', 'json',
             {error: !this.state.correct});
-        return <div className={classes}>
-              <textarea ref={this.set_ref}/>
-            </div>;
+        return <Tooltip title={this.props.tooltip}>
+          <div className={classes}>
+            <textarea ref={this.set_ref}/>
+          </div>
+        </Tooltip>;
+    }
+}
+
+export class Url_input extends Pure_component {
+    constructor(props){
+        super(props);
+        this.state = {url: props.val, valid: true};
+    }
+    on_url_change = (url, id)=>{
+        const valid = zurl.is_valid_url(url);
+        if (valid)
+            this.props.on_change_wrapper(url, id);
+        this.setState({url, valid});
+    };
+    render(){
+        const input_props = Object.assign({}, this.props, {
+            val: this.state.url,
+            on_change_wrapper: this.on_url_change,
+            className: classnames({error: !this.state.valid}),
+        });
+        return <Input {...input_props}/>;
     }
 }
 
@@ -371,7 +440,7 @@ export const Typeahead_wrapper = props=>
     <Typeahead options={props.data} maxResults={10}
       minLength={1} disabled={props.disabled} selectHintOnEnter
       onChange={props.on_change_wrapper} selected={props.val}
-      onInputChange={props.on_input_change}/>;
+      onInputChange={props.on_input_change} filterBy={props.filter_by}/>;
 
 export const Select = props=>{
     const update = val=>{
@@ -410,3 +479,64 @@ export const Input = props=>{
           onBlur={props.on_blur}
           onKeyUp={props.on_key_up}/>;
 };
+
+export const Select_zone = withRouter(
+class Select_zone extends Pure_component {
+    state = {refreshing_zones: false, zones: {zones: []}};
+    componentDidMount(){
+        this.setdb_on('head.zones', zones=>{
+            if (zones)
+                this.setState({zones});
+        });
+    }
+    refresh_zones = ()=>{
+        const _this = this;
+        this.etask(function*(){
+            this.on('uncaught', ()=>{
+                _this.setState({refreshing_zones: false});
+            });
+            _this.setState({refreshing_zones: true});
+            const result = yield window.fetch('/api/refresh_zones',
+                {method: 'POST'});
+            if (result.status!=200)
+                return _this.props.history.push({pathname: '/login'});
+            const zones = yield ajax.json({url: '/api/zones'});
+            _this.setState({refreshing_zones: false});
+            setdb.set('head.zones', zones);
+        });
+    };
+    render(){
+        const {val, on_change_wrapper, disabled, preview} = this.props;
+        const tooltip = preview ? '' : this.props.tooltip;
+        const zone_opt = this.state.zones.zones.map(z=>{
+            if (z.name==this.state.zones.def)
+                return {key: `Default (${z.name})`, value: z.name};
+            return {key: z.name, value: z.name};
+        });
+        return <div className="select_zone">
+              <Tooltip title={tooltip}>
+                <span data-tip data-for="zone-tip">
+                  {preview &&
+                    <React_tooltip id="zone-tip" type="light" effect="solid"
+                      place="bottom" delayHide={0} delayUpdate={300}>
+                      {disabled ? <Ext_tooltip/> :
+                        <div className="zone_tooltip">
+                          <Zone_description zone_name={val}/>
+                        </div>
+                      }
+                    </React_tooltip>
+                  }
+                  <Select val={val} type="select"
+                    on_change_wrapper={on_change_wrapper} label="Default zone"
+                    tooltip={tooltip} data={zone_opt} disabled={disabled}/>
+                </span>
+              </Tooltip>
+              <Tooltip title="Refresh zones">
+                <div className="chrome_icon refresh"
+                  style={{top: 3, position: 'relative'}}
+                  onClick={this.refresh_zones}/>
+              </Tooltip>
+              <Loader show={this.state.refreshing_zones}/>
+            </div>;
+    }
+});

@@ -1,5 +1,241 @@
 Luminati Proxy manager - Change Log
 
+## 1.155.133 Stable
+- :bug: Fixed SMTP settings in proxy port's General tab
+
+## 1.154.894 Development Latest
+- :sparkles: Added option to use SOCKS to connect LPM and Super Proxy
+- :sparkles: Dashboard UI improvements, allowing to enable/disable recent stats panel
+
+## 1.154.55 Development Latest
+- :sparkles: Added proxy port specific IPs whitelisting in General tab
+- :sparkles: Added option to unban IPs from UI in 'Banned IPs' table
+- :bug: Fixed 'Cannnot read property 'toLowerCase' of undefined' when running LPM on Docker
+
+## 1.153.629 Stable
+- :bug: Fixed error logging
+
+## 1.153.425 Stable
+- :sparkles: Reduced timeout period, improving memory management
+
+## 1.153.222 Stable
+- :sparkles: Better handling of timeout handlers
+
+## 1.153.189 Stable
+- :sparkles: Added 'High CPU usage' UI indicator and logs
+- :bug: Fixed HAR preview Timing tab ports display
+- :bug: Fixed bug in Proxies list
+
+## 1.152.345 Stable
+- :sparkles: Added rule action 'Request URL' to send a HTTP request
+- :sparkles: Improved proxies overview UX, allowing deletion of multiple ports
+- :bug: Fixed default zone handling. Changing default zone will no more affect existing ports' zones
+- :sparkles: Ban IP rule actions are now available with URL triggered rules
+
+## 1.151.641 Stable
+- :bug: Fix UI Error when accessing Targeting tab in static zones
+- :sparkles: Added option 'DNS check' to ignore requests without DNS resolution
+
+## 1.151.510 Development Latest
+- :bug: Deprecated fast_session_pool in favor of regular pool
+- :bug: Fixed whitelisting IPs with ranges using API
+
+## 1.151.372 Stable
+- :bug: Fixed WS traffic when SSL Analyzing is on
+- :bug: Fixed browser response when using Process data rule
+- :sparkles: Improved the UX of whitelisting IPs
+
+## 1.151.77 Stable
+- :bug: Fixed WSS traffic when SSL Analyzing is on
+- :bug: Fixed updating whitelist IPs in cluster mode
+
+## 1.150.854 Stable
+- :bug: Fixed duplication proxy ports
+- :star: Updated geo locations and list of available carriers
+
+## 1.150.681 Stable
+- :bug: Fixed UI crash related to Static IP columns
+- :bug: Fixed proxy ports status column on specific errors
+- :bug: Fixed install for older MacOS versions
+- :sparkles: Support for cluster mode (running on multiple CPUs) without session management
+- :sparkles: Refresh IP action is now available for static residential zones
+
+## 1.150.351 Stable
+- :sparkles: UI improvement: setting headers requires SSL Analyzing to reduce confusion
+- :bug: Fixed country targeting for static zones
+
+## 1.150.274 Stable
+- :sparkles: IP refresh price now is shown in Refresh IP action rule
+- :sparkles: Static IP column will now show IPs in the pool
+- :bug: Fix shortcut problem for Windows home directories with '&' character
+
+## 1.149.883 Stable
+- :star: Updated geo locations and list of available carriers
+- :bug: Fixed gIP allocation modal checkboxes
+
+## 1.149.626 Stable
+- :bug: Session termination has been redesigned to avoid infinite loops
+- :bug: Fixed install script for MacOS, now using Node 10.15.3
+- :bug: Fix typos in 'Report Bug' modal
+- :bug: Enforce Node 10.16.3 on Linux
+
+## 1.149.104 Stable
+- :bug: Fixed 'Cannot read property slice of undefined' on startup
+
+## 1.148.901 Stable
+- :star: Performance improvements (make use of HTTP agent to reuse open sockets
+
+## 1.148.629 Stable
+
+## 1.148.475 Stable
+
+## 1.148.367 Stable
+- :bug: bug fixes
+
+## 1.148.204 Stable
+- :star: Super proxies are resolved on each request by default
+
+## 1.148.122 Stable
+
+## 1.148.74 Stable
+- :bug: fix whitelisting
+
+## 1.147.992 Stable
+
+## 1.147.960 Stable
+- :star: add a flag to ignore SSL to super proxy errors
+
+## 1.147.813 Stable
+- :bug: Fixed overriding parameters in CLI
+
+## 1.147.705 Stable
+- :bug: Bug fixes
+
+## 1.147.566 Stable
+- :bug: UI bug fixes
+- :star: Adding UI supporting for cluster mode
+
+## 1.147.269 Stable
+- :bug: Bug fixes
+- :star: Improved error handling
+
+## 1.147.79 Stable
+- :bug: Bug fixes
+
+## 1.146.711 Stable
+- :bug: Using correct password when Waterfall rule is applied
+
+## 1.146.606 Stable
+- :bug: Fixed crashes for docker
+- :bug: Added more error handling
+
+## 1.146.377 Stable
+- :bug: fixed error: Hostname/IP does not match certificate's altnames
+- :bug: Bug fixes / UI improvements
+
+## 1.146.183 Stable
+- :star: Added support for domain param in /proxies/:port/banip and /proxies/:port/banips APIs
+
+## 1.146.158 Stable
+- :bug: Fixed LPM WS connection when accessed with https
+- :bug: Fix socket hang up errors
+
+## 1.146.94 Stable
+- :star: Added missing countries of super proxies
+- :sparkles: Show Static IPs column in multiplied proxy port overviews using a static zones
+
+## 1.145.600 Stable
+- :star: AS prefix allowed for ASN field
+
+## 1.145.154 Stable
+- :bug: Bug fixes / UI improvements
+
+## 1.144.356 Stable
+- :bug: Fixed overrding options when passing args in CLI
+
+## 1.143.768 Stable
+- :bug: Fixed persisting the order of multiplied proxy ports
+- :bug: Fixed origin IP for incoming requests on SOCKS5
+
+## 1.143.567 Stable
+- :star: UI improvements (zones list synchronization)
+
+## 1.143.412 Stable
+- :bug: Fixed whitelisting and moved it from proxy config to general settings
+
+## 1.143.166 Stable
+- :bug: Fixed error: unable to get local issuer certificate
+- :bug: Fixed overriding passwords
+
+## 1.142.833 Stable
+- :bug: Fixed empty space when there isn't open browser icon in proxies table
+- :bug: Fixed stability issues
+
+## 1.142.291 Stable
+- :bug: Fixed small bugs
+
+## 1.142.102 Stable
+- :star: Improved performance when using a big number of proxy ports
+- :bug: Fixed zones/plans details
+
+## 1.141.733 Stable
+- :star: Added api/async_req endpoint
+
+## 1.141.582 Development Latest
+- :star: Added "local_login" flag to require each browser to authenticate separately
+
+## 1.141.384 Stable
+- :bug: fixed callback leaks on overview page
+- :star: Added a button to refresh zones list/settings
+
+## 1.141.40 Stable
+- :bug: Fixed targeting for datacenter
+
+## 1.141.27 Stable
+- :bug: Fixed empty spaces (ui)
+
+## 1.140.948 Stable
+- :bug: fixed session duration combined with pool
+
+## 1.140.839 Stable
+- :star: replace HAR viewer with the message when logs are off
+
+## 1.140.560 Stable
+- :star: Improved the performance of saving configuration
+
+## 1.140.22 Stable
+- :bug: fix preserving the order on changes in DC IPs
+
+## 1.139.746 Development Latest
+- :star: More accurate BW measurement
+
+## 1.139.623 Stable
+- :bug: fix LPM response when cert is wrong and not using insecure flag
+- :sparkles: Added new Rule action: "Ban IPs globally"
+
+## 1.139.129 Stable
+- :star: Added Insecure field under General tab
+
+## 1.139.62 Stable
+
+## 1.138.758 Stable
+- :bug: Fixed targeting mobile IPs
+
+## 1.138.603 Stable
+- :star: Added support for "carrier" option in Link Tester API
+- :bug: Improved error messages
+- :bug: Fixed IP rotation for external proxies
+
+## 1.138.518 Stable
+- :bug: Super Proxy's icon flag in LPM isn't changing
+- :bug: *_chrome_icon elements are not showed correctly on Mozilla
+
+## 1.138.327 Stable
+- :bug: Fixed debug: none option to skip all the debug headers
+
+## 1.138.101 Stable
+- :bug: Fixed presence of open browser button if host is not localhost
+
 ## 1.137.946 Stable
 - :bug: Fixed Waterfall rule between external proxy and Luminati proxy
 
@@ -42,7 +278,7 @@ Luminati Proxy manager - Change Log
 ## 1.135.636 Stable
 - :star: Added UI for choosing SMTP proxy targets under "General" tab
 
-## 1.135.547 
+## 1.135.547 Stable
 
 ## 1.135.418 Stable
 - :bug: Multiple bug fixed and improved error handling
@@ -65,7 +301,7 @@ Luminati Proxy manager - Change Log
 ## 1.133.416 Stable
 - :star: Added support for testing SMTP
 
-## 1.132.959 
+## 1.132.959 Stable
 
 ## 1.132.959 Stable
 - :star: List of banned IPs persists across changes in proxy port
@@ -83,7 +319,7 @@ Luminati Proxy manager - Change Log
 ## 1.131.176 Stable
 - :bug: Fix an issue causing empty HAR logs
 
-## 1.131.19 
+## 1.131.19 Stable
 - :bug: Fix lokijs related crashes
 - :star: Improved sessions management
 - :star: Introduced live data on the UI
@@ -119,7 +355,7 @@ Luminati Proxy manager - Change Log
 ## 1.127.526 Stable
 - :bug: Fix 'long availability' pool type
 
-## 1.126.871 
+## 1.126.871 Stable
 
 ## 1.125.699 Stable
 - :bug: Fix refresh IPs rule action
@@ -172,7 +408,7 @@ Luminati Proxy manager - Change Log
 ## 1.120.389 Stable
 - :bug: Fixed UI: incorrect cache
 
-## 1.120.280 
+## 1.120.280 Stable
 
 ## 1.120.149 Stable
 - :bug: Fixed installation script
@@ -234,7 +470,7 @@ Luminati Proxy manager - Change Log
 ## 1.115.736 Stable
 - :bug: Bug fixes
 
-## 1.115.628 
+## 1.115.628 Stable
 
 ## 1.114.998 Stable
 - :bug: fixed 502 erros handling with Rules
@@ -273,7 +509,7 @@ Luminati Proxy manager - Change Log
 ## 1.112.498 Stable
 - :star: Further development of 25 port support
 
-## 1.112.248 
+## 1.112.248 Stable
 
 ## 1.112.99 Stable
 - :sparkles: Updated Node and npm in Dockerfile
@@ -431,7 +667,7 @@ Luminati Proxy manager - Change Log
 - :star: Moved 'Regexp for bypass proxy' config into Rules tab
 - :star: Moved 'Regexp for super proxy' config into Rules tab
 
-## 1.103.790 
+## 1.103.790 Stable
 - :sparkles: Added regexp generator
 
 ## 1.103.508 Stable

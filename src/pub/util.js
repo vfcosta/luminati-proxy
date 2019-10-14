@@ -117,6 +117,66 @@ const presets = {
             pool_prefill: true,
         },
     },
+    rotating: {
+        title: 'Rotating (IPs)',
+        subtitle: 'For changing the IP on each request',
+        set: opt=>{
+            opt.pool_type = '';
+            opt.session = true;
+            opt.max_requests = opt.max_requests||1;
+        },
+        clean: opt=>{
+            opt.max_requests = 0;
+            opt.session_duration = 0;
+            opt.pool_size = 0;
+        },
+        rules: [
+            {field: 'multiply', label: `Disables 'Multiply' options`},
+            {field: 'max_requests', label: `Sets 'Max requests' to 1. It makes
+                sense to choose any other positive number`},
+        ],
+        disabled: {
+            sticky_ip: true,
+            session_random: true,
+            session: true,
+            multiply: true,
+            multiply_ips: true,
+            multiply_vips: true,
+            pool_type: true,
+            seed: true,
+            idle_pool: true,
+        },
+    },
+    long_availability: {
+        title: 'Long availability',
+        subtitle: `Creates a pool of IPs and always uses the most stable IP
+            from the pool`,
+        set: opt=>{
+            opt.pool_size = 20;
+            opt.session = true;
+            opt.pool_type = 'long_availability';
+        },
+        clean: opt=>{
+            opt.pool_size = 0;
+            opt.pool_type = undefined;
+        },
+        rules: [
+            {field: 'pool_size', label: `Sets 'Pool size' to 20`},
+            {field: 'pool_type',
+                label: `Sets pool type to 'Long availability'`},
+        ],
+        disabled: {
+            sticky_ip: true,
+            session_random: true,
+            session: true,
+            pool_type: true,
+            seed: true,
+            max_requests: true,
+            session_duration: true,
+            idle_pool: true,
+            pool_prefill: true,
+        },
+    },
     sticky_ip: {
         title: 'Session (IP) per machine',
         subtitle: `Each requesting machine will have its own session (IP).
@@ -129,6 +189,7 @@ const presets = {
         clean: opt=>{
             opt.max_requests = 0;
             opt.session_duration = 0;
+            opt.sticky_ip = false;
         },
         rules: [
             {field: 'pool_size', label: `Sets 'Pool size' to 0`},
@@ -143,74 +204,13 @@ const presets = {
             session_random: true,
             session: true,
             pool_type: true,
+            max_requests: true,
+            session_duration: true,
             seed: true,
             pool_size: true,
             idle_pool: true,
             pool_prefill: true,
         },
-    },
-    rotating: {
-        title: 'Rotating (IPs)',
-        subtitle: 'For changing the IP on each request',
-        set: opt=>{
-            opt.pool_type = '';
-            opt.session = true;
-            opt.max_requests = 1;
-        },
-        clean: opt=>{
-            opt.max_requests = 0;
-            opt.session_duration = 0;
-            opt.pool_size = 0;
-        },
-        rules: [
-            {field: 'multiply', label: `Disables 'Multiply' options`},
-            {field: 'max_requests', label: `Sets 'Max requests' to 1. It makes
-                sense to choose any other positive number`},
-        ],
-        disabled: {
-            sticky_ip: true,
-            session_random: true,
-            session: true,
-            multiply: true,
-            multiply_ips: true,
-            multiply_vips: true,
-            pool_type: true,
-            seed: true,
-            idle_pool: true,
-        },
-    },
-    high_performance: {
-        title: 'High performance',
-        subtitle: 'Maximum request speed',
-        set: opt=>{
-            opt.pool_size = 50;
-            opt.pool_type = '';
-            opt.proxy_count = 20;
-            opt.max_requests = 1;
-            opt.race_reqs = 2;
-            opt.session = true;
-        },
-        clean: opt=>{
-            opt.pool_size = 0;
-            opt.proxy_count = '';
-            opt.race_reqs = '';
-        },
-        disabled: {
-            sticky_ip: true,
-            session_random: true,
-            session: true,
-            pool_type: true,
-            seed: true,
-            pool_size: true,
-            idle_pool: true,
-        },
-        rules: [
-            {field: 'pool_size', label: `Sets 'Pool size' to 50`},
-            {field: 'race_reqs', label: `Uses race requests`},
-            {field: 'proxy_count', label: `Uses 20 different super proxies`},
-            {field: 'max_requests', label: `Sets 'Max requests' to 1. It makes
-                sense to choose any other positive number`},
-        ],
     },
     rnd_usr_agent_and_cookie_header: {
         title: 'Random User-Agent',
@@ -245,7 +245,6 @@ const presets = {
         subtitle: `Scrape data from shopping websites. This preset is
             configured for product pages but can be freely modified for any
             other use-cases`,
-        chceck: opt=>true,
         set: opt=>{
             opt.session = true;
             opt.dns = 'remote';
@@ -327,21 +326,3 @@ export const swagger_url = 'http://petstore.swagger.io/?url=https://'
 
 export const swagger_link_tester_url = swagger_url
 +'/get_proxies__port__link_test_json';
-
-export const detect_browser = ()=>{
-    let browser = 'unknown';
-    if (window.opr && window.opr.addons || window.opera ||
-        navigator.userAgent.indexOf(' OPR/')>=0)
-    {
-        browser = 'opera';
-    }
-    else if (typeof InstallTrigger!=='undefined')
-        browser = 'firefox';
-    else if (document.documentMode)
-        browser = 'IE';
-    else if (window.StyleMedia)
-        browser = 'Edge';
-    else if (window.chrome && window.chrome.webstore)
-        browser = 'chrome';
-    return browser;
-};

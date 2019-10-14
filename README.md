@@ -9,7 +9,7 @@ A forward HTTP/HTTPS proxy on your side, to accelerate/compress/rotate/distribut
 With Luminati HTTP/HTTPS Proxy manager you can drive the Luminati residential IPs or Luminati static IPs.
 
 This tool requires a [Luminati](https://luminati.io/?cam=github-proxy) account.
-Please report issues or bugs to your Lumianti account manager or from our [help center](https://luminati.io/faq#proxy)
+Please report issues or bugs to your Luminati account manager or from our [help center](https://luminati.io/faq#proxy)
 
 <em>Read this in [中文](https://lum-lpm.com/static/lpm/README-zh-CN.html).</em>
 
@@ -33,7 +33,7 @@ Please report issues or bugs to your Lumianti account manager or from our [help 
 ## Installation
 
 ### Windows
-Download the [Luminati Proxy Manager installer](https://github.com/luminati-io/luminati-proxy/releases/download/v1.137.946/luminati-proxy-manager-v1.137.946-setup.exe)
+Download the [Luminati Proxy Manager installer](https://github.com/luminati-io/luminati-proxy/releases/download/v1.155.133/luminati-proxy-manager-v1.155.133-setup.exe)
 
 ### Linux/MacOS - Install script
 - Run the setup script to install
@@ -46,7 +46,7 @@ curl -L https://luminati.io/static/lpm/luminati-proxy-latest-setup.sh | bash
 ```
 ### Linux/MacOS - Manual install
 - Install Node.js 10 ([nodejs.org](https://nodejs.org/en/download/))
-  Node.js version for the proxy manager should be any v 10.X.X.
+  Node.js version for the proxy manager should be any at least 10.15.3
 - Make sure npm version is 6.4.1 or higher
   - if not, run: `sudo npm install -g npm@6.4.1`
 - Install Luminati Proxy from the terminal prompt:
@@ -155,7 +155,7 @@ Options:
   --multiply               Multiply the port definition given number of times
                                                                         [number]
   --ssl                    Enable SSL analyzing       [boolean] [default: false]
-  --log                    Log level                 [string] [default: "error"]
+  --log                    Log level                [string] [default: "notice"]
   --iface                  Interface or IP to listen on
                                                    [string] [default: "0.0.0.0"]
   --customer               Luminati customer                            [string]
@@ -164,14 +164,8 @@ Options:
   --proxy                  Hostname or IP of super proxy
                                   [string] [default: "zproxy.lum-superproxy.io"]
   --proxy_port             Super proxy port            [number] [default: 22225]
-  --proxy_count            Minimum number of super proxies to use
-                                                           [number] [default: 1]
-  --secure_proxy           Use SSL when accessing super proxy
-                                                      [boolean] [default: false]
-  --short_username         Use Shorthand username for super proxy credentials
-                                                      [boolean] [default: false]
-  --proxy_switch           Automatically switch super proxy on failure
-                                                           [number] [default: 5]
+  --proxy_connection_type  Connection type between LPM and Super Proxy
+                                                      [string] [default: http]
   --proxy_retry            Automatically retry on super proxy failure
                                                            [number] [default: 2]
   --insecure               Enable SSL connection/analyzing to insecure hosts
@@ -207,7 +201,7 @@ Options:
   --race_reqs              Race several requests at once and choose fastest
                                                                         [number]
   --www                    HTTP port for browser admin UI       [default: 22999]
-  --www_whitelist_ips      Whitelist IPs to access browser admin UI. [string]
+  --www_whitelist_ips      Whitelist IPs to access browser admin UI.    [string]
                            [default:"127.0.0.1"]
                            [example: --www_whitelist_ips "212.17.0.1"]
   --ws                     WebSocket port used for request logs [default: 22998]
@@ -222,7 +216,6 @@ Options:
                                                       [boolean] [default: false]
   --token                  A Google authorization token for accessing
                            luminati.io                                  [string]
-  --proxy_creds_check      Validate proxy credentials  [boolean] [default: true]
   --request_stats          Enable requests statistics  [boolean] [default: true]
   --test_url               A url for testing proxy
                               [string] [default: "http://lumtest.com/myip.json"]
@@ -236,7 +229,7 @@ Options:
                                                       [boolean] [default: false]
   --version, -v            Show version number                         [boolean]
   --help, -h, -?           Show help                                   [boolean]
-  --api                                   [default: "https://lum-lpm.com"]
+  --api                                      [default: "https://lum-lpm.com"]
 
 ```
 

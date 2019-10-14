@@ -110,17 +110,50 @@ html, body, #react_root, .page_wrapper, .page_wrapper>div, .page_body {
     margin-right: 2px;
 }
 .whitelist_ips {
+    max-width: 800px;
+    margin: auto;
+    .user_choice {
+        display: flex;
+        .user {
+            cursor: pointer;
+            padding: 30px;
+            width: 240px;
+            height: 280px;
+            margin-right: 20px;
+            outline: 1px solid @grey_border;
+            &.active {
+                outline: 2px solid @first_color;
+            }
+            .img_wrapper {
+                width: 88px;
+                height: 88px;
+                margin: 0 auto 30px;
+                .img {
+                    width: 100%;
+                    height: 100%;
+                }
+                .admin { background-image: url(img/ic_admin.svg); }
+                .guest { background-image: url(img/ic_guest.svg); }
+            }
+            .user_title {
+                margin-bottom: 12px;
+                font-size: 20px;
+                font-weight: bold;
+                line-height: 1.2;
+            }
+            .user_desc {
+                font-size: 14px;
+                line-height: 1.2;
+            }
+        }
+    }
     .whitelist_header {
         h3 { font-size: 30px; }
         margin-bottom: 30px;
         margin-top: 30px;
-        max-width: 1000px;
-        margin: auto;
         text-align: left;
     }
     .steps {
-        max-width: 1000px;
-        margin: auto;
         margin-top: 50px;
         h3 { font-size: 17px; }
         .instructions { margin: 15px 10px; }
@@ -284,7 +317,12 @@ html, body, #react_root, .page_wrapper, .page_wrapper>div, .page_body {
         }
     }
 }
-.tooltip.in { opacity: 1; }
+.tooltip {
+    z-index: 10000;
+}
+.tooltip.in {
+    opacity: 1;
+}
 .tooltip-proxy-status .tooltip-inner, .tooltip-default .tooltip-inner,
 .tooltip .tooltip-inner {
     word-break: break-word;
@@ -298,7 +336,6 @@ html, body, #react_root, .page_wrapper, .page_wrapper>div, .page_body {
 }
 .tooltip.har_tooltip {
     .tooltip-inner {
-        top: 7px;
         position: relative;
         max-width: 550px;
         background: hsl(0, 0%, 95%);
@@ -319,12 +356,16 @@ html, body, #react_root, .page_wrapper, .page_wrapper>div, .page_body {
         font-family: Roboto, Ubuntu, Arial, sans-serif;
     }
     .tooltip-arrow { display: none; }
+    &.top {
+        .tooltip-inner { top: 7px; }
+    }
     &.bottom {
         margin-top: 0;
         padding-top: 0;
         margin-left: 9px;
         .tooltip-inner { top: 4px; }
     }
+    &.left { margin-left: 0; }
 }
 .tooltip.wide .tooltip-inner { max-width: 600px; }
 .tooltip.top .tooltip-arrow { border-top-color: @tooltip; }
@@ -445,7 +486,7 @@ h4 { margin: 0; }
     }
 }
 select, input[type=number], input[type=text], input[type=password],
-input[type=email], textarea, .code_mirror_wrapper {
+input[type=email], input[type=url], textarea, .code_mirror_wrapper {
     min-width: 100px;
     width: auto;
     height: 32px;
@@ -497,6 +538,7 @@ input.regex {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
 }
+input[type=url].error { border-color: @error_dark; }
 .react_select__control {
     .react_select__clear-indicator, .react_select__dropdown-indicator {
         padding: 1px;
@@ -588,7 +630,6 @@ ul.bullets {
 }
 .pins_field {
     display: flex;
-    align-items: baseline;
     .pins {
         display: flex;
         flex-flow: wrap;
@@ -601,6 +642,9 @@ ul.bullets {
             margin: 0 6px 2px 0;
             &.active {
                 border-color: @first_color;
+            }
+            &.disabled {
+                background-color: @dark_grey;
             }
             .x, .v {
                 width: 16px;
@@ -630,7 +674,7 @@ ul.bullets {
     .add_pin {
         margin-left: 0;
         cursor: pointer;
-        height: 32px;
+        height: 31px;
         .glyphicon-plus {
             margin-left: 5px;
         }
@@ -874,7 +918,9 @@ span.icon_link {
         }
         &.no_header { padding: 5px; }
     }
-    .modal-body { padding: 15px 20px 0; }
+    .modal-body {
+        padding: 15px 20px 0;
+    }
     .modal-footer {
         padding: 15px 20px;
         border: 0;
@@ -1126,10 +1172,10 @@ span.icon_link {
                     position: absolute;
                     top: 5px;
                     right: 5px;
-                    cursor: pointer;
                     background: url(/img/delete.svg);
                     width: 16px;
                     height: 16px;
+                    border: none;
                 }
             }
             .rule_add_btn {
@@ -1203,29 +1249,27 @@ span.icon_link {
             &.active { visibility: visible; }
             .checks { display: flex; }
             .check {
-                cursor: pointer;
                 margin: auto 2px;
                 line-height: 1.3;
                 padding: 3px;
                 background: transparent;
                 text-shadow: rgba(255, 255, 255, 0.5) 0 1px 0;
+                border: none;
                 border-radius: 6px;
                 overflow: hidden;
-                &.active:not(.disabled), &:hover:not(.disabled) {
+                &:hover:not([disabled]) {
                     color: white;
                     text-shadow: rgba(0, 0, 0, 0.4) 0 1px 0;
                 }
                 &.active {
+                    color: white;
+                    text-shadow: rgba(0, 0, 0, 0.4) 0 1px 0;
                     background: rgba(0, 0, 0, 0.3);
                 }
-                &:hover:not(.active) {
+                &:hover:not(.active):not([disabled]) {
                     background: rgba(0, 0, 0, 0.2);
                 }
-                &.disabled {
-                    opacity: 0.5;
-                    &:hover, &.active { background: transparent; }
-                    cursor: default;
-                }
+                &[disabled] { opacity: 0.5; }
             }
         }
     }
@@ -1270,23 +1314,27 @@ span.icon_link {
     }
     .panels {
         display: flex;
-        flex: 0 0 356px;
+        flex: 3;
+        position: relative;
+        padding-left: 15px;
+        padding-right: 15px;
     }
     .proxies_wrapper {
         flex: 1;
         overflow: auto;
-        margin-left: 15px;
-        margin-right: 7px;
     }
     .stats_wrapper {
         width: 305px;
         min-width: 305px;
         max-width: 305px;
-        margin-left: 7px;
-        margin-right: 15px;
+        margin-left: 15px;
         .stats_panel {
+            height: 100%;
+            .main_panel {
+                display: flex;
+                flex-direction: column;
+            }
             .tables_container {
-                height: 100px;
                 .data_container {
                     position: initial;
                     flex: 1;
@@ -1324,12 +1372,21 @@ span.icon_link {
             }
         }
     }
+    .enable_stats_btn {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        margin-right: 15px;
+        background: none;
+        border: 1px solid;
+        border-radius: 50%;
+    }
     .logs_wrapper {
-        flex: 1;
         display: flex;
         .har_viewer {
             height: auto;
             padding: 15px;
+            min-height: initial;
         }
     }
 }
@@ -1344,10 +1401,10 @@ span.icon_link {
 }
 .ReactVirtualized__Table__headerTruncatedText {
     position: relative;
-    top: 1px;
+    top: 2px;
 }
 .ReactVirtualized__Grid__innerScrollContainer {
-    min-height: 301px;
+    min-height: 100%;
 }
 .proxies {
     &.nav_header { padding: 0 15px 10px; }
@@ -1364,8 +1421,20 @@ span.icon_link {
         .refresh { grid-column: 3; }
         .browser { grid-column: 4; }
     }
+    .proxies_actions_3 {
+        visibility: hidden;
+        display: grid;
+        grid-template-columns: 33% 33% 33%;
+        .action_icon.chrome_icon { width: 18px; }
+        .trash { grid-column: 1; }
+        .duplicate { grid-column: 2; }
+        .refresh { grid-column: 3; }
+    }
     .chrome_tr:hover {
         .proxies_actions {
+            visibility: visible;
+        }
+        .proxies_actions_3 {
             visibility: visible;
         }
     }
@@ -1572,7 +1641,6 @@ span.icon_link {
             position: relative;
             padding: 1px;
             .CodeMirror {
-                .CodeMirror-cursors { z-index: -1; }
                 flex: auto;
                 display: flex;
                 flex-direction: column;
@@ -2112,6 +2180,11 @@ span.icon_link {
                 cursor: pointer;
             }
         }
+        .cpu_warning {
+            white-space: nowrap;
+            margin-right: 40px;
+            .glyphicon { margin-right: 5px; }
+        }
     }
     .dropdown {
         margin-right: 10px;
@@ -2402,7 +2475,7 @@ span.icon_link {
                 span.t_button { background-color: #333; }
             }
             &.active { span.t_button { background-color: #2196f3; } }
-            &.close_logs { float: right; }
+            &.close_logs { float: right; margin-left: auto; }
         }
         .devider {
             background-color: #ccc;
@@ -2603,10 +2676,7 @@ span.icon_link {
                         div.chrome_td {
                             height: 100%;
                         }
-                        td, div.chrome_td {
-                            padding: 0;
-                            cursor: default;
-                        }
+                        td, div.chrome_td { cursor: default; }
                     }
                     &.error:not(.selected) { color: rgb(230, 0, 0); }
                     &.pending { color: #7a8c9f; }
@@ -2614,7 +2684,7 @@ span.icon_link {
                 td, div.chrome_td {
                     margin: 0;
                     border-left: 1px solid #e1e1e1;
-                    height: 21px;
+                    height: 22px;
                     cursor: pointer;
                     &:first-child { border-left: none; }
                     .disp_value {
@@ -2675,6 +2745,22 @@ span.icon_link {
     &:hover { background-color: #333; }
     &.active { background-color: #2196f3; }
 }
+@-moz-document url-prefix() {
+.chrome_icon {
+    background-color: rgba(0, 0, 0, 0);
+    background: url(/img/large_icons.png);
+    background-position: var(--spritesheet-position);
+    &:hover { background-color: rgba(0, 0, 0, 0); }
+    &.active { background-color: rgba(0, 0, 0, 0); }
+}
+.chrome {
+    .toolbar_container {
+        .toolbar_button:hover {
+            span.t_button { background-color: rgba(0, 0, 0, 0); }
+        }
+    }
+}
+}
 .expandable {
     cursor: pointer;
     display: flex;
@@ -2695,6 +2781,10 @@ span.icon_link {
     }
     &.open:before { -webkit-mask-position: -16px 0; }
 }
+.har_viewer_off {
+    width: 100%;
+    padding-bottom: 15px;
+}
 .har_viewer {
     &.waiting * { cursor: wait !important; }
     width: 100%;
@@ -2708,28 +2798,22 @@ span.icon_link {
         }
         .actions { display: flex; }
     }
-    .tables_container {
-        .data_container {
-            table {
-                td {
-                    .disp_value { display: block; }
-                    label { margin: 0; }
-                    input[type=checkbox] {
-                        margin-top: 0;
-                        margin-left: 3px;
-                        top: 3px;
-                        position: relative;
-                    }
-                    &:nth-child(2) { border-left: none; }
-                }
+    .tables_container .data_container table td .disp_value { display: block; }
+}
+.har_viewer, .proxies_panel, .banned_ips_panel {
+    .tables_container, .header_container {
+        table td, table th, div.chrome_table div.chrome_td,
+        div.chrome_table div.chrome_th {
+            &:nth-child(2) { border-left: none; }
+            label { margin: 0; }
+            .form-check { text-align: center; }
+            input[type=checkbox] {
+                margin: 0;
+                top: 2px;
             }
         }
-        .header_container {
-            table th {
-                &:nth-child(2) { border-left: none; }
-                input[type=checkbox] { margin-left: 3px; }
-                label { margin: 0; }
-            }
+        table th, div.chrome_table div.chrome_th {
+            &:first-child { text-align: center };
         }
     }
 }
@@ -3028,4 +3112,11 @@ span.icon_link {
             box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
         }
     }
+}
+.btn_unban {
+    border: none;
+    background: none;
+    display: block;
+    margin: auto;
+    padding: 0;
 }

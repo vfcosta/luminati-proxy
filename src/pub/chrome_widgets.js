@@ -7,9 +7,10 @@ import _ from 'lodash';
 import Tooltip from './common/tooltip.js';
 import {T} from './common/i18n.js';
 
-export const Toolbar_button = ({id, tooltip, active, href, ...props})=>
+export const Toolbar_button = ({id, tooltip, active, href, placement,
+    ...props})=>
     <T>{t=>
-    <Tooltip title={t(tooltip)} placement={'bottom'}>
+    <Tooltip title={t(tooltip)} placement={placement||'bottom'}>
       <a className={classnames('toolbar_item toolbar_button', id, {active})}
         onClick={props.on_click||(()=>null)} href={href}>
         <span className={classnames(id, 't_button', 'chrome_icon')}/>
@@ -153,8 +154,9 @@ export const Sort_icon = ({show, dir})=>{
 
 export class Chrome_table extends Pure_component {
     render(){
-        const {cols, title, children} = this.props;
-        return <T>{t=><div className="chrome chrome_table">
+        const {cols, title, children, class_name} = this.props;
+        const classes = classnames('chrome', 'chrome_table', class_name);
+        return <T>{t=><div className={classes}>
               <div className="main_panel vbox">
                 <Toolbar_container>
                   <Toolbar_row>

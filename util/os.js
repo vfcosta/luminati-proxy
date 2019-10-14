@@ -19,6 +19,7 @@ var ffi;
 try { ffi = require('ffi'); } catch(e){}
 const libc = ffi && !file.is_darwin ? ffi.Library('libc',
     {fallocate: ['int', ['int', 'int', 'long', 'long']]}) : undefined;
+const bin_ip = exec.which('ip');
 
 var distro_release;
 var procfs_fmt = {
@@ -109,7 +110,18 @@ E.get_release = function(no_cache){
     }
     else if (!file.is_darwin)
     {
-        const info = exec.get_lines(['lsb_release', '-i', '-r', '-c', '-s']);
+        let info = exec.get_lines(['lsb_release', '-i', '-r', '-c', '-s']);
+        if (!info.length)
+        {
+            const os_info = exec.get_lines('cat /etc/os-release');
+            const get = k=>{
+                const start = `${k.toUpperCase()}=`;
+                const data = os_info.find(l=>l.startsWith(start));
+                return data &&
+                    data.slice(start.length).replace(/^"|"$/g, '') || '';
+            };
+            info = [get('id'), get('version_id'), get('version_codename')];
+        }
         distro_release = {
             id: info[0].toLowerCase(),
             version: info[1],
@@ -278,9 +290,20 @@ E.cpu_usage = function(cpus_curr, cpus_prev){
 if (!file.is_darwin)
     E.cpu_usage(); // init
 
+E.iface_list = ()=>{
+    if (file.is_win || file.is_darwin)
+        return Object.keys(os.networkInterfaces());
+    // https://github.com/nodejs/node/issues/498
+    let ifaces = cli.exec_get_lines(`${bin_ip} link show`);
+    return ifaces.map(str=>{
+        const match = /^\d+:\s([\w@]+):.*/.exec(str);
+        return match && match[1].replace(/@\w+$/, '');
+    }).filter(i=>i);
+};
+
 E.eth_dev = ()=>{
     let is_ether = ifname=>/^(en|wl|eth)/.test(ifname);
-    let ifaces = Object.keys(os.networkInterfaces()).filter(is_ether);
+    let ifaces = E.iface_list().filter(is_ether);
     if (E.is_release(['c:trusty']))
         return {eth_dev: 'eth0', udptunnel_dev: 'eth1', ifaces};
     // https://cgit.freedesktop.org/systemd/systemd/tree/src/udev/udev-builtin-net_id.c#n20
@@ -288,7 +311,7 @@ E.eth_dev = ()=>{
         throw new Error('No ethernet interfaces found');
     if (ifaces.length==1)
         return {eth_dev: ifaces[0], ifaces};
-    let routes = cli.exec_get_lines(`/sbin/ip -4 route`);
+    let routes = cli.exec_get_lines(`${bin_ip} -4 route`);
     let default_route = array.grep(routes, /^default/)[0];
     if (!default_route)
         throw new Error('Default route not found');
@@ -433,8 +456,14 @@ E.vmstat = function(){
 
 E.disk_page_io = function(){
     var vmstat = E.vmstat();
-    // pgpgin/pgpgout are reported in KB
-    return {read: vmstat.pgpgin*KB, write: vmstat.pgpgout*KB};
+    // pgpgin/pgpgout are reported in KB; nr_dirty is reported in 4K pages
+    return {
+        read: vmstat.pgpgin*KB,
+        write: vmstat.pgpgout*KB,
+        dirty: vmstat.nr_dirty*4*KB,
+        dirty_max: vmstat.nr_dirty_threshold*4*KB,
+        dirty_bg_max: vmstat.nr_dirty_background_threshold*4*KB,
+    };
 };
 
 function calc_diskstat(cur, prev){
@@ -534,9 +563,11 @@ E.info = function(){
 };
 
 E.node = function(){
-    const dst = file.is_dir('/var/hola_server') ? 'hola_server' : 'hola_agent';
+    const dst = file.is_dir(file.normalize('/var/hola_agent')) ?
+        'hola_agent' : 'hola_server';
     let host = exec.get_line('/usr/local/bin/node -v').replace(/^v/, '');
-    let hola_server = file.read_line(`/var/${dst}/node_version`);
+    let hola_server = file.read_line(
+        file.normalize(`/var/${dst}/node_version`));
     return {host, hola_server};
 };
 

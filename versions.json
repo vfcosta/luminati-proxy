@@ -1,5 +1,810 @@
 [
     {
+        "ver": "1.155.133",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed SMTP settings in proxy port's General tab"
+            }
+        ]
+    },
+    {
+        "ver": "1.154.894",
+        "type": "dev",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "Added option to use SOCKS to connect LPM and Super Proxy"
+            },
+            {
+                "type": "sparkles",
+                "text": "Dashboard UI improvements, allowing to enable/disable recent stats panel"
+            }
+        ]
+    },
+    {
+        "ver": "1.154.55",
+        "type": "dev",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "Added proxy port specific IPs whitelisting in General tab"
+            },
+            {
+                "type": "sparkles",
+                "text": "Added option to unban IPs from UI in 'Banned IPs' table"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed 'Cannnot read property 'toLowerCase' of undefined' when running LPM on Docker"
+            }
+        ]
+    },
+    {
+        "ver": "1.153.629",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed error logging"
+            }
+        ]
+    },
+    {
+        "ver": "1.153.425",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "Reduced timeout period, improving memory management"
+            }
+        ]
+    },
+    {
+        "ver": "1.153.222",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "Better handling of timeout handlers"
+            }
+        ]
+    },
+    {
+        "ver": "1.153.189",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "Added 'High CPU usage' UI indicator and logs"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed HAR preview Timing tab ports display"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed bug in Proxies list"
+            }
+        ]
+    },
+    {
+        "ver": "1.152.345",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "Added rule action 'Request URL' to send a HTTP request"
+            },
+            {
+                "type": "sparkles",
+                "text": "Improved proxies overview UX, allowing deletion of multiple ports"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed default zone handling. Changing default zone will no more affect existing ports' zones"
+            },
+            {
+                "type": "sparkles",
+                "text": "Ban IP rule actions are now available with URL triggered rules"
+            }
+        ]
+    },
+    {
+        "ver": "1.151.641",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fix UI Error when accessing Targeting tab in static zones"
+            },
+            {
+                "type": "sparkles",
+                "text": "Added option 'DNS check' to ignore requests without DNS resolution"
+            }
+        ]
+    },
+    {
+        "ver": "1.151.510",
+        "type": "dev",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Deprecated fast_session_pool in favor of regular pool"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed whitelisting IPs with ranges using API"
+            }
+        ]
+    },
+    {
+        "ver": "1.151.372",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed WS traffic when SSL Analyzing is on"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed browser response when using Process data rule"
+            },
+            {
+                "type": "sparkles",
+                "text": "Improved the UX of whitelisting IPs"
+            }
+        ]
+    },
+    {
+        "ver": "1.151.77",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed WSS traffic when SSL Analyzing is on"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed updating whitelist IPs in cluster mode"
+            }
+        ]
+    },
+    {
+        "ver": "1.150.854",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed duplication proxy ports"
+            },
+            {
+                "type": "star",
+                "text": "Updated geo locations and list of available carriers"
+            }
+        ]
+    },
+    {
+        "ver": "1.150.681",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed UI crash related to Static IP columns"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed proxy ports status column on specific errors"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed install for older MacOS versions"
+            },
+            {
+                "type": "sparkles",
+                "text": "Support for cluster mode (running on multiple CPUs) without session management"
+            },
+            {
+                "type": "sparkles",
+                "text": "Refresh IP action is now available for static residential zones"
+            }
+        ]
+    },
+    {
+        "ver": "1.150.351",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "UI improvement: setting headers requires SSL Analyzing to reduce confusion"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed country targeting for static zones"
+            }
+        ]
+    },
+    {
+        "ver": "1.150.274",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "sparkles",
+                "text": "IP refresh price now is shown in Refresh IP action rule"
+            },
+            {
+                "type": "sparkles",
+                "text": "Static IP column will now show IPs in the pool"
+            },
+            {
+                "type": "bug",
+                "text": "Fix shortcut problem for Windows home directories with '&' character"
+            }
+        ]
+    },
+    {
+        "ver": "1.149.883",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Updated geo locations and list of available carriers"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed gIP allocation modal checkboxes"
+            }
+        ]
+    },
+    {
+        "ver": "1.149.626",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Session termination has been redesigned to avoid infinite loops"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed install script for MacOS, now using Node 10.15.3"
+            },
+            {
+                "type": "bug",
+                "text": "Fix typos in 'Report Bug' modal"
+            },
+            {
+                "type": "bug",
+                "text": "Enforce Node 10.16.3 on Linux"
+            }
+        ]
+    },
+    {
+        "ver": "1.149.104",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed 'Cannot read property slice of undefined' on startup"
+            }
+        ]
+    },
+    {
+        "ver": "1.148.901",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Performance improvements (make use of HTTP agent to reuse open sockets"
+            }
+        ]
+    },
+    {
+        "ver": "1.148.629",
+        "type": "stable",
+        "changes": []
+    },
+    {
+        "ver": "1.148.475",
+        "type": "stable",
+        "changes": []
+    },
+    {
+        "ver": "1.148.367",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "bug fixes"
+            }
+        ]
+    },
+    {
+        "ver": "1.148.204",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Super proxies are resolved on each request by default"
+            }
+        ]
+    },
+    {
+        "ver": "1.148.122",
+        "type": "stable",
+        "changes": []
+    },
+    {
+        "ver": "1.148.74",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "fix whitelisting"
+            }
+        ]
+    },
+    {
+        "ver": "1.147.992",
+        "type": "stable",
+        "changes": []
+    },
+    {
+        "ver": "1.147.960",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "add a flag to ignore SSL to super proxy errors"
+            }
+        ]
+    },
+    {
+        "ver": "1.147.813",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed overriding parameters in CLI"
+            }
+        ]
+    },
+    {
+        "ver": "1.147.705",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Bug fixes"
+            }
+        ]
+    },
+    {
+        "ver": "1.147.566",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "UI bug fixes"
+            },
+            {
+                "type": "star",
+                "text": "Adding UI supporting for cluster mode"
+            }
+        ]
+    },
+    {
+        "ver": "1.147.269",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Bug fixes"
+            },
+            {
+                "type": "star",
+                "text": "Improved error handling"
+            }
+        ]
+    },
+    {
+        "ver": "1.147.79",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Bug fixes"
+            }
+        ]
+    },
+    {
+        "ver": "1.146.711",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Using correct password when Waterfall rule is applied"
+            }
+        ]
+    },
+    {
+        "ver": "1.146.606",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed crashes for docker"
+            },
+            {
+                "type": "bug",
+                "text": "Added more error handling"
+            }
+        ]
+    },
+    {
+        "ver": "1.146.377",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "fixed error: Hostname/IP does not match certificate's altnames"
+            },
+            {
+                "type": "bug",
+                "text": "Bug fixes / UI improvements"
+            }
+        ]
+    },
+    {
+        "ver": "1.146.183",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Added support for domain param in /proxies/:port/banip and /proxies/:port/banips APIs"
+            }
+        ]
+    },
+    {
+        "ver": "1.146.158",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed LPM WS connection when accessed with https"
+            },
+            {
+                "type": "bug",
+                "text": "Fix socket hang up errors"
+            }
+        ]
+    },
+    {
+        "ver": "1.146.94",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Added missing countries of super proxies"
+            },
+            {
+                "type": "sparkles",
+                "text": "Show Static IPs column in multiplied proxy port overviews using a static zones"
+            }
+        ]
+    },
+    {
+        "ver": "1.145.600",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "AS prefix allowed for ASN field"
+            }
+        ]
+    },
+    {
+        "ver": "1.145.154",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Bug fixes / UI improvements"
+            }
+        ]
+    },
+    {
+        "ver": "1.144.356",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed overrding options when passing args in CLI"
+            }
+        ]
+    },
+    {
+        "ver": "1.143.768",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed persisting the order of multiplied proxy ports"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed origin IP for incoming requests on SOCKS5"
+            }
+        ]
+    },
+    {
+        "ver": "1.143.567",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "UI improvements (zones list synchronization)"
+            }
+        ]
+    },
+    {
+        "ver": "1.143.412",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed whitelisting and moved it from proxy config to general settings"
+            }
+        ]
+    },
+    {
+        "ver": "1.143.166",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed error: unable to get local issuer certificate"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed overriding passwords"
+            }
+        ]
+    },
+    {
+        "ver": "1.142.833",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed empty space when there isn't open browser icon in proxies table"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed stability issues"
+            }
+        ]
+    },
+    {
+        "ver": "1.142.291",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed small bugs"
+            }
+        ]
+    },
+    {
+        "ver": "1.142.102",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Improved performance when using a big number of proxy ports"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed zones/plans details"
+            }
+        ]
+    },
+    {
+        "ver": "1.141.733",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Added api/async_req endpoint"
+            }
+        ]
+    },
+    {
+        "ver": "1.141.582",
+        "type": "dev",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Added \"local_login\" flag to require each browser to authenticate separately"
+            }
+        ]
+    },
+    {
+        "ver": "1.141.384",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "fixed callback leaks on overview page"
+            },
+            {
+                "type": "star",
+                "text": "Added a button to refresh zones list/settings"
+            }
+        ]
+    },
+    {
+        "ver": "1.141.40",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed targeting for datacenter"
+            }
+        ]
+    },
+    {
+        "ver": "1.141.27",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed empty spaces (ui)"
+            }
+        ]
+    },
+    {
+        "ver": "1.140.948",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "fixed session duration combined with pool"
+            }
+        ]
+    },
+    {
+        "ver": "1.140.839",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "replace HAR viewer with the message when logs are off"
+            }
+        ]
+    },
+    {
+        "ver": "1.140.560",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Improved the performance of saving configuration"
+            }
+        ]
+    },
+    {
+        "ver": "1.140.22",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "fix preserving the order on changes in DC IPs"
+            }
+        ]
+    },
+    {
+        "ver": "1.139.746",
+        "type": "dev",
+        "changes": [
+            {
+                "type": "star",
+                "text": "More accurate BW measurement"
+            }
+        ]
+    },
+    {
+        "ver": "1.139.623",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "fix LPM response when cert is wrong and not using insecure flag"
+            },
+            {
+                "type": "sparkles",
+                "text": "Added new Rule action: \"Ban IPs globally\""
+            }
+        ]
+    },
+    {
+        "ver": "1.139.129",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Added Insecure field under General tab"
+            }
+        ]
+    },
+    {
+        "ver": "1.139.62",
+        "type": "stable",
+        "changes": []
+    },
+    {
+        "ver": "1.138.758",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed targeting mobile IPs"
+            }
+        ]
+    },
+    {
+        "ver": "1.138.603",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "star",
+                "text": "Added support for \"carrier\" option in Link Tester API"
+            },
+            {
+                "type": "bug",
+                "text": "Improved error messages"
+            },
+            {
+                "type": "bug",
+                "text": "Fixed IP rotation for external proxies"
+            }
+        ]
+    },
+    {
+        "ver": "1.138.518",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Super Proxy's icon flag in LPM isn't changing"
+            },
+            {
+                "type": "bug",
+                "text": "*_chrome_icon elements are not showed correctly on Mozilla"
+            }
+        ]
+    },
+    {
+        "ver": "1.138.327",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed debug: none option to skip all the debug headers"
+            }
+        ]
+    },
+    {
+        "ver": "1.138.101",
+        "type": "stable",
+        "changes": [
+            {
+                "type": "bug",
+                "text": "Fixed presence of open browser button if host is not localhost"
+            }
+        ]
+    },
+    {
         "ver": "1.137.946",
         "type": "stable",
         "changes": [
@@ -145,7 +950,7 @@
     },
     {
         "ver": "1.135.547",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": []
     },
     {
@@ -222,7 +1027,7 @@
     },
     {
         "ver": "1.132.959",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": []
     },
     {
@@ -281,7 +1086,7 @@
     },
     {
         "ver": "1.131.19",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": [
             {
                 "type": "bug",
@@ -403,7 +1208,7 @@
     },
     {
         "ver": "1.126.871",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": []
     },
     {
@@ -579,7 +1384,7 @@
     },
     {
         "ver": "1.120.280",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": []
     },
     {
@@ -786,7 +1591,7 @@
     },
     {
         "ver": "1.115.628",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": []
     },
     {
@@ -917,7 +1722,7 @@
     },
     {
         "ver": "1.112.248",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": []
     },
     {
@@ -1462,7 +2267,7 @@
     },
     {
         "ver": "1.103.790",
-        "type": "stable/dev",
+        "type": "stable",
         "changes": [
             {
                 "type": "sparkles",
